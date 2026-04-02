@@ -27,21 +27,26 @@ Este documento describe la arquitectura, funcionalidades y flujos de trabajo del
 ### Datos de Usuarios
 - **User**: Perfil personal del músico (DNI, Residencia, Empleo). Sincronizado con Clerk mediante `clerkUserId`.
 - **Estructura**: Tabla de relación que asocia a un usuario con una agrupación (Orquesta, Coro) y un instrumento específico.
+- **InvitationCode**: Tokens criptográficos de un solo uso para invitar a nuevos músicos.
 
 ---
 
 ## 3. Funcionalidades Principales
 
-### A. Registro de Músicos (Onboarding)
-- **Ruta**: `/registro-usuarios` (URL secreta para el staff).
-- **Flujo**: Formulario de 5 pasos que recoge datos personales, residencia, estudios y perfil artístico (hasta 3 agrupaciones/secciones).
-- **Automatización**: Al registrarse, el sistema asigna automáticamente etiquetas de "Tutti" (ej: `Orquesta - Tutti`) según la agrupación seleccionada, garantizando que el nuevo miembro vea el material general de su grupo desde el minuto uno.
+### A. Registro de Músicos (Onboarding Seguro)
+- **Ruta**: `/registro-usuarios` (Bloqueada por Token).
+- **Sistema de Invitaciones**: El registro ya no es accesible mediante una URL estática. Ahora requiere un **Token de Invitación Nominativo** generado por un Administrador.
+- **Seguridad Criptográfica**: Cada token tiene **128 bits de entropía** (32 caracteres hexadecimales aleatorios), lo que hace imposible el acceso por fuerza bruta o predicción.
+- **Trazabilidad**: Las invitaciones son nominativas. Al generarlas, el Admin asigna un "Nombre - Sección", permitiendo saber exactamente quién ha recibido el código y quién falta por registrarse.
+- **Caducidad y Un solo Uso**: Los tokens caducan automáticamente a los **7 días** y se desactivan permanentemente tras el primer uso exitoso.
+- **Automatización**: Al registrarse, el sistema asigna automáticamente etiquetas de "Tutti" (ej: `Orquesta - Tutti`) según la agrupación seleccionada, garantizando que el nuevo miembro vea el material general de su grupo desde el primer acceso.
 
 ### B. Gestión de Archivo (Admin/Master)
 - **Ruta**: `/miembros/gestion`.
 - **Partituras**: Subida de archivos con renombrado automático descriptivo (`Obra_Secciones.pdf`). Incluye previsualización del nombre en tiempo real.
 - **Instrumentos (Diccionario)**: Panel para añadir o eliminar instrumentos y organizarlos por familias. Es la fuente de verdad para toda la web.
 - **Personal**: Los administradores "Master" pueden asignar permisos de **Archivero** (gestión de archivos) o **Master** (control total), además de banear usuarios o editar sus etiquetas de acceso.
+- **Invitaciones**: Generador de tokens 128-bit nominativos para nuevos integrantes.
 
 ### C. Repositorio Digital (Músico)
 - **Ruta**: `/miembros/repositorio`.
@@ -67,6 +72,12 @@ El acceso no es jerárquico, sino por **intersección de etiquetas**:
    - **Dirección Musical**: Los usuarios con roles que comienzan por "Dirección" heredan automáticamente acceso a todo el material etiquetado como `Tutti` de su agrupación correspondiente (ej: Dirección de Coro ve todo lo de `Coro - Tutti`).
    - **Documentos Generales**: Si el archivo está marcado como `isDocument`, es visible para cualquier usuario logueado.
 
+### E. Blindaje de Acceso (Invitaciones)
+Para prevenir registros no autorizados, el portal implementa un "Paso 0" de validación:
+1. **Generación**: Un Admin Master genera un token criptográfico asociado a un nombre y sección (ej: "Marta Gil - Clarinete").
+2. **Validación**: El servidor comprueba que el token existe en la DB, no ha sido usado y no ha expirado (ventana de 7 días).
+3. **Consumo**: Al finalizar el registro, el token se marca como `usedAt` en la base de datos, quedando invalidado permanentemente.
+
 ---
 
 ## 5. Mantenimiento y Despliegue
@@ -80,7 +91,7 @@ El acceso no es jerárquico, sino por **intersección de etiquetas**:
 
 ### Comandos Útiles
 - `npx prisma db push`: Sincroniza cambios en el esquema sin migraciones pesadas.
-- `npx prisma generate`: Regenera el cliente para reconocer nuevos campos (como `familia`).
+- `npx prisma generate`: Regenera el cliente para reconocer nuevos campos (como `forWhom` o `familia`).
 
 ---
 
