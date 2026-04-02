@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from "@clerk/nextjs";
 
 type TabType = 'scores' | 'categories' | 'roles' | 'personal';
-
-export const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
+const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
 
 export default function AdminOCGCPartituras() {
   const { user, isLoaded } = useUser();
