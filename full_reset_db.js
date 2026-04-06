@@ -17,12 +17,20 @@ const DATOS_PREDETERMINADOS = {
     "Viento Metal": ["Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino"],
     "Coro": ["Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)"],
     "Tuttis": ["Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti"],
-    "Generales": [
+    "Dirección": [
       "Dirección artística y musical (OCGC y Orquesta)", 
       "Dirección musical (Ensemble Flautas)", 
       "Dirección musical (Ensemble Metales)", 
       "Dirección musical (Ensemble Violonchelos)", 
       "Dirección musical (Coro)"
+    ],
+    "Generales": [
+      "General Orquesta",
+      "General Coro",
+      "General Ensemble Flautas",
+      "General Ensemble Metales",
+      "General Ensemble Chelos",
+      "General Big Band"
     ]
   }
 };

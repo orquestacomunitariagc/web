@@ -44,15 +44,21 @@ async function main() {
     "Percusión": ["Percusión"],
     "Coro": ["Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)", "Coach vocal"],
     "Tuttis": ["Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti"],
-    "Generales": [
+    "Dirección": [
       "Dirección artística y musical (OCGC y Orquesta)", 
       "Dirección musical (Ensemble Flautas)", 
       "Dirección musical (Ensemble Metales)", 
       "Dirección musical (Ensemble Violonchelos)", 
-      "Dirección musical (Coro)",
-      "Solista"
+      "Dirección musical (Coro)"
     ],
-    "Otros": ["Colaboradores", "Invitados", "Técnico Sonido", "Técnico Sala"]
+    "Generales": [
+      "General Orquesta",
+      "General Coro",
+      "General Ensemble Flautas",
+      "General Ensemble Metales",
+      "General Ensemble Chelos",
+      "General Big Band"
+    ]
   };
 
   let seccionCount = 0;

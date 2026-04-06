@@ -6,6 +6,8 @@ import DashboardPanel from '@/components/admin/DashboardPanel';
 import CalendarPanel from '@/components/admin/CalendarPanel';
 import LogsPanel from '@/components/admin/LogsPanel';
 import CSVImportScores from '@/components/admin/CSVImportScores';
+import CSVImportUsers from '@/components/admin/CSVImportUsers';
+import AdminGuideModal from '@/components/admin/AdminGuideModal';
 
 type TabType = 'scores' | 'categories' | 'roles' | 'personal' | 'dashboard' | 'calendar' | 'logs';
 const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
@@ -41,6 +43,7 @@ export default function AdminOCGCPartituras() {
   // Estados para vista previa de subida
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadIsDoc, setUploadIsDoc] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Filtros de búsqueda y selectores
   const [searchScore, setSearchScore] = useState('');
@@ -352,10 +355,22 @@ export default function AdminOCGCPartituras() {
   return (
     <div className="admin-body-pure">
       <div className="admin-header-box">
-        <div className="admin-title-section">
-          <h1>Gestión Archivo OCGC</h1>
-          <p>Control de partituras, roles, categorías y personal</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1.5rem' }}>
+          <div className="admin-title-section">
+            <h1>Gestión Archivo OCGC</h1>
+            <p>Control de partituras, roles, categorías y personal</p>
+          </div>
+          {activeTab && (
+            <button 
+              onClick={() => setIsHelpOpen(true)} 
+              className="btn-help-guide"
+              style={{ background: '#e1f0ff', color: '#0070f3', border: '1px solid #74b9ff', padding: '0.4rem 1.2rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              ❓ Guía de sección
+            </button>
+          )}
         </div>
+
         <nav className="admin-nav-pills">
           {isMaster && <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>Dashboard</button>}
           <button onClick={() => setActiveTab('scores')} className={activeTab === 'scores' ? 'active' : ''}>Partituras</button>
@@ -371,8 +386,12 @@ export default function AdminOCGCPartituras() {
         </nav>
       </div>
 
+      {isHelpOpen && <AdminGuideModal activeTab={activeTab!} onClose={() => setIsHelpOpen(false)} />}
+
       {activeTab === 'scores' && (
-        <div className="admin-content-grid">
+        <>
+          <CSVImportScores categories={categories} onImportSuccess={() => loadData(true)} />
+          <div className="admin-content-grid">
           <section className="admin-form-card">
             <h2>Añadir Partitura o Documento</h2>
             <form action="/api/scores/create" method="POST" encType="multipart/form-data" className="new-score-form" onSubmit={(e) => {
@@ -393,21 +412,37 @@ export default function AdminOCGCPartituras() {
                 {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
               </select>
               <input type="file" name="file" accept=".pdf" required />
-              <div className="instrument-chips-grid">
-                {predefinedRoles.map(r => (
-                  <label key={r} className={`instrument-chip ${selectedRoles.includes(r) ? 'selected' : ''}`}>
-                    <input 
-                      type="checkbox" 
-                      name="roles" 
-                      value={r} 
-                      checked={selectedRoles.includes(r)} 
-                      onChange={() => toggleRole(r)} 
-                      style={{ display: 'none' }} 
-                    />
-                    {r}
-                  </label>
-                ))}
+              
+              <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#444', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Seleccionar Destinatarios:</p>
+                {Object.keys(rolesDict).length > 0 ? (
+                  Object.entries(rolesDict).map(([familia, instrumentos]) => (
+                    instrumentos.length > 0 && (
+                      <div key={familia} style={{ marginBottom: '1.2rem' }}>
+                        <h4 style={{ fontSize: '0.75rem', color: '#478AC9', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.6rem', borderLeft: '3px solid #478AC9', paddingLeft: '0.6rem' }}>{familia}</h4>
+                        <div className="instrument-chips-grid">
+                          {instrumentos.map((r: any) => (
+                            <label key={r.name} className={`instrument-chip ${selectedRoles.includes(r.name) ? 'selected' : ''}`}>
+                              <input 
+                                type="checkbox" 
+                                name="roles" 
+                                value={r.name} 
+                                checked={selectedRoles.includes(r.name)} 
+                                onChange={() => toggleRole(r.name)} 
+                                style={{ display: 'none' }} 
+                              />
+                              {r.name}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))
+                ) : (
+                  <p style={{ fontSize: '0.85rem', color: '#999' }}>Cargando instrumentos...</p>
+                )}
               </div>
+
               <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0 0 1rem', fontSize: '0.9rem', color: '#555', cursor: 'pointer' }}>
                 <input type="checkbox" name="isDocument" value="true" checked={uploadIsDoc} onChange={(e) => setUploadIsDoc(e.target.checked)} />
                 Marcar como Documento General (Para Todos)
@@ -510,6 +545,7 @@ export default function AdminOCGCPartituras() {
             </table>
           </section>
         </div>
+      </>
       )}
 
       {activeTab === 'categories' && (
@@ -634,7 +670,6 @@ export default function AdminOCGCPartituras() {
               })}
             </div>
           </section>
-          <CSVImportScores categories={categories} onImportSuccess={() => loadData(true)} />
         </div>
       )}
 
@@ -732,6 +767,7 @@ export default function AdminOCGCPartituras() {
             </select>
             <input type="text" placeholder="Nombre/Email..." value={searchMember} onChange={(e) => setSearchMember(e.target.value)} style={{ flex: 1, padding: '0.8rem', border: '1px solid #ddd', borderRadius: '6px', minWidth: '200px' }} />
           </div>
+          <CSVImportUsers onImportSuccess={() => loadMembers(true)} />
           <div className="table-scroll">
             <table className="personal-table">
               <thead>
@@ -836,7 +872,7 @@ export default function AdminOCGCPartituras() {
 
       <style jsx>{`
         .admin-body-pure { width: 100%; }
-        .admin-header-box { display: flex; justify-content: space-between; margin-bottom: 2rem; align-items: flex-start; }
+        .admin-header-box { display: flex; flex-direction: column; margin-bottom: 2.5rem; }
         .admin-title-section { flex: 1; }
         .admin-title-section h1 { margin: 0 0 0.3rem; font-size: 1.8rem; color: #333; }
         .admin-title-section p { margin: 0; color: #999; font-size: 0.9rem; }
