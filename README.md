@@ -101,10 +101,32 @@ Para prevenir registros no autorizados, el portal implementa un "Paso 0" de vali
 - **P1012 de Prisma 7+**: Para evitar que la API y los builds en Vercel Edge/WASM fallen trágicamente, **el proyecto está bloqueado en Prisma v6.2.1.** 
 - Nunca usar un `prisma.config.ts`, y siempre alimentar la base de datos indirectamente con la string nativa de la URL en the `schema.prisma`.
 
+## 6. Gestión de Tipografía
+
+El portal permite alternar entre dos sistemas visuales principales. Actualmente, la **fuente corporativa** está activa por defecto.
+
+### Opciones Disponibles:
+1.  **Montserrat Alternates** (Activa): Identidad corporativa de la OCGC. Moderna, geométrica y con gran legibilidad.
+2.  **Cormorant Garamond**: Opción elegante y clásica (Serif), ideal para un estilo artístico "Premium" o de bellas artes.
+
+### Cómo cambiar la fuente:
+Para alternar entre ellas, debes realizar cambios en dos archivos simultáneamente:
+
+1.  **`css/styles.css`**:
+    *   Busca la sección `/* Typography — OCGC Corporate Identity */`.
+    *   Intercambia los comentarios entre las líneas de `--font-display`.
+    *   Asegúrate de que el `@import` correspondiente en la parte superior del archivo también esté activo.
+
+2.  **`app/layout.tsx`**:
+    *   Busca el bloque de `Google Fonts`.
+    *   Descomenta el `<link>` de la fuente que desees activar y comenta la otra. Esto asegura que el navegador no descargue fuentes innecesarias.
+
+---
+
+## 7. Mantenimiento y Despliegue
+
 ### Comandos Útiles
 - `npx prisma db push`: Sincroniza cambios en el esquema sin migraciones pesadas.
 - `npx prisma generate`: Regenera el cliente para reconocer nuevos campos (como `forWhom` o `familia`).
-
----
 
 *Documentación generada para el equipo técnico de la Orquesta Comunitaria de Gran Canaria.*
