@@ -46,6 +46,14 @@ export default function AdminOCGCPartituras() {
   const [isJoinRequestsLoaded, setIsJoinRequestsLoaded] = useState(false);
   const [filterRequestStatus, setFilterRequestStatus] = useState<string>('Pendiente');
 
+  // Estado para el último link generado
+  const [lastGeneratedLink, setLastGeneratedLink] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("¡Enlace copiado al portapapeles! 📋");
+  };
+
   // Estados para vista previa de subida
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadIsDoc, setUploadIsDoc] = useState(false);
@@ -309,6 +317,7 @@ export default function AdminOCGCPartituras() {
       return;
     }
     setIsGeneratingInvite(true);
+    setLastGeneratedLink(null);
     try {
       const res = await fetch("/api/admin/invitations", { 
         method: "POST",
@@ -321,10 +330,20 @@ export default function AdminOCGCPartituras() {
       if (res.ok) {
         const newInvite = await res.json();
         setInvitations(prev => [newInvite, ...prev]);
+        const fullUrl = `${window.location.origin}/registro-usuarios?code=${newInvite.code}`;
+        
+        if (inviteEmail) {
+          alert(`¡Invitación enviada por correo a ${inviteEmail}!`);
+        } else {
+          setLastGeneratedLink(fullUrl);
+          // Opcional: copiar automáticamente
+          navigator.clipboard.writeText(fullUrl);
+          alert("✓ Enlace generado y copiado al portapapeles.");
+        }
+
         setInviteName('');
         setInviteSection('');
         setInviteEmail('');
-        if (inviteEmail) alert(`¡Invitación enviada por correo a ${inviteEmail}!`);
       }
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -352,14 +371,19 @@ export default function AdminOCGCPartituras() {
       });
       if (res.ok) {
         setJoinRequests(prev => prev.map(jr => jr.id === id ? { ...jr, status } : jr));
-        if (status === 'Aceptada' && name && email) {
+        if (status === 'Aceptada' && name) {
           setInviteName(name);
-          setInviteEmail(email);
+          setInviteEmail(email || '');
+          // Buscamos la solicitud original para sacar el instrumento si no lo tenemos
+          const req = joinRequests.find(jr => jr.id === id);
+          if (req) {
+            setInviteSection(`${req.group}${req.instrument ? ` - ${req.instrument}` : ''}`);
+          }
           setActiveTab('personal');
           setTimeout(() => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }, 100);
-          alert(`Solicitud de ${name} aceptada. Se han precargado los datos para generar su invitación.`);
+          alert(`Solicitud de ${name} aceptada. Se han precargado los datos. Pulsa "Generar Enlace" para terminar.`);
         }
       }
     } catch (err) { console.error("Error updating status:", err); }
@@ -751,7 +775,7 @@ export default function AdminOCGCPartituras() {
               </select>
               <input 
                 type="email" 
-                placeholder="Email de destino (Opcional, envía link automático)" 
+                placeholder="Email de destino (Si se deja vacío, genera link para copiar)" 
                 value={inviteEmail} 
                 onChange={(e) => setInviteEmail(e.target.value)} 
                 style={{ flex: 2, padding: '0.8rem', borderRadius: '8px', border: '1px solid #ccc' }}
@@ -762,10 +786,28 @@ export default function AdminOCGCPartituras() {
                 style={{ width: 'auto', padding: '0.8rem 1.5rem', background: inviteEmail ? 'var(--clr-success)' : 'var(--clr-navy)' }}
                 disabled={isGeneratingInvite}
               >
-                {isGeneratingInvite ? "Generando..." : (inviteEmail ? "Generar y Enviar 📨" : "Crear Manual 🎟️")}
+                {isGeneratingInvite ? "Generando..." : (inviteEmail ? "Generar y Enviar 📨" : "Solo Generar Link 🔗")}
               </button>
             </div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
+            
+            {lastGeneratedLink && (
+              <div style={{ marginTop: '1.5rem', padding: '1.2rem', background: '#e7f5ff', border: '1px dashed #478AC9', borderRadius: '10px', animation: 'pulse 2s infinite' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#478AC9', fontWeight: 'bold', textTransform: 'uppercase' }}>✓ Enlace Generado para {inviteName || "Invitado"}</span>
+                    <code style={{ fontSize: '0.85rem', color: '#333', background: 'white', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d0e6f8', display: 'block', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastGeneratedLink}</code>
+                  </div>
+                  <button 
+                    onClick={() => copyToClipboard(lastGeneratedLink)} 
+                    style={{ background: '#478AC9', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                  >
+                    Copiar Link 📋
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p style={{ margin: '1rem 0 0', fontSize: '0.8rem', color: '#666' }}>
               El código será de 1 solo uso y caducará automáticamente en 7 días si no se utiliza.
             </p>
           </div>
@@ -1063,13 +1105,22 @@ export default function AdminOCGCPartituras() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {(r.status === 'Pendiente' || r.status === 'Evaluando') && (
-                      <button 
-                        onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
-                        className="btn-main-admin"
-                        style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none' }}
-                      >
-                        Aceptar ✅
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <button 
+                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
+                          className="btn-main-admin"
+                          style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none', padding: '0.6rem' }}
+                        >
+                          Aceptar y Enviar Email ✅
+                        </button>
+                        <button 
+                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name)}
+                          className="btn-main-admin"
+                          style={{ fontSize: '0.75rem', background: 'var(--clr-navy)', border: 'none', padding: '0.6rem' }}
+                        >
+                          Aceptar y ver link 🔗
+                        </button>
+                      </div>
                     )}
                     {r.status === 'Pendiente' && (
                       <button 
