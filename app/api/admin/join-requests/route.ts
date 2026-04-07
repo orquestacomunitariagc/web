@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 
+// 🔍 Listar solicitudes (Admin Only)
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Unauthorized", { status: 401 });
@@ -11,18 +11,18 @@ export async function GET() {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const invitations = await prisma.invitationCode.findMany({
-      where: { usedAt: null },
+    const requests = await prisma.joinRequest.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(invitations);
+    return NextResponse.json(requests);
   } catch (error) {
-    console.error("Error fetching invitations:", error);
+    console.error("Error fetching join requests:", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+// ✍️ Actualizar estado (Admin Only)
+export async function PATCH(req: Request) {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
@@ -30,39 +30,22 @@ export async function POST(req: Request) {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const { forWhom, email } = await req.json();
+    const { id, status } = await req.json();
+    if (!id || !status) return new NextResponse("Missing fields", { status: 400 });
 
-    const code = crypto.randomBytes(16).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const invitation = await prisma.invitationCode.create({
-      data: {
-        code,
-        forWhom,
-        sentToEmail: email || null,
-        expiresAt
-      }
+    const updated = await prisma.joinRequest.update({
+      where: { id: parseInt(id) },
+      data: { status }
     });
 
-    if (email) {
-      const { sendInvitationEmail } = await import("@/lib/email");
-      try {
-        // Obtenemos solo el nombre (el forWhom suele ser "Nombre - Seccion")
-        const nameOnly = forWhom.split(" - ")[0];
-        await sendInvitationEmail(email, nameOnly, code);
-      } catch (err) {
-        console.error("Error enviando email invitacion:", err);
-      }
-    }
-
-    return NextResponse.json(invitation);
+    return NextResponse.json(updated);
   } catch (error) {
-    console.error("Error creating invitation:", error);
+    console.error("Error updating join request:", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
+// 🗑️ Eliminar solicitud (Admin Only)
 export async function DELETE(req: Request) {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Unauthorized", { status: 401 });
@@ -76,13 +59,13 @@ export async function DELETE(req: Request) {
 
     if (!id) return new NextResponse("Missing ID", { status: 400 });
 
-    await prisma.invitationCode.delete({
+    await prisma.joinRequest.delete({
       where: { id: parseInt(id) }
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting invitation:", error);
+    console.error("Error deleting join request:", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

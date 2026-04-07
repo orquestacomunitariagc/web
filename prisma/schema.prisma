@@ -170,3 +170,17 @@ model ActivityLog {
   @@index([createdAt])
   @@index([userClerkId])
 }
+
+model JoinRequest {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String
+  phone       String
+  group       String   // Agrupación (Orquesta, Coro, etc.)
+  instrument  String?
+  experience  String?  @db.Text
+  status      String   @default("Pendiente") // Pendiente, Aceptado, Rechazado
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+}

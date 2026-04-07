@@ -54,11 +54,42 @@ const IconCello = () => (
 
 export default function UnetePage() {
   const [activeForm, setActiveForm] = useState<GroupId | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<any>(null);
 
-  const handleSubmit = (e: React.FormEvent, group: string) => {
+  const handleSubmit = async (e: React.FormEvent, group: string) => {
     e.preventDefault();
-    alert(`¡Solicitud para ${group} enviada con éxito! Nos pondremos en contacto contigo pronto.`);
-    setActiveForm(null);
+    setLoading(true);
+    setStatus(null);
+
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const data = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      experience: formData.get("experience"),
+      group: group,
+      instrument: formData.get("instrument") || group, // Para los que no tengan selector extra
+    };
+
+    try {
+      const res = await fetch("/api/unete", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        setStatus({ success: true, msg: `¡Solicitud para ${group} enviada con éxito! Nos pondremos en contacto contigo pronto.` });
+        setTimeout(() => { setActiveForm(null); setStatus(null); }, 3000);
+      } else {
+        setStatus({ success: false, msg: resData.error || "Error al enviar la solicitud." });
+      }
+    } catch (err) {
+      setStatus({ success: false, msg: "Error de conexión." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const groups: Group[] = [
@@ -219,23 +250,56 @@ export default function UnetePage() {
             <div className="form-modal-content">
               <button className="close-modal" onClick={() => setActiveForm(null)} aria-label="Cerrar modal">✕</button>
               <h3 id="modal-title">Inscripción: {g.name}</h3>
+
+              {status && (
+                <div className={`alert ${status.success ? 'alert-success' : 'alert-error'}`} style={{ marginBottom: 'var(--sp-4)', padding: 'var(--sp-3)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}>
+                  {status.msg}
+                </div>
+              )}
+
               <form onSubmit={(e) => handleSubmit(e, g.name)}>
                 <label htmlFor="fi-name" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Nombre y Apellidos *</label>
-                <input id="fi-name" type="text" placeholder="Tu nombre completo" required className="form-control" autoComplete="name" />
+                <input id="fi-name" name="name" type="text" placeholder="Tu nombre completo" required className="form-control" autoComplete="name" />
 
                 <label htmlFor="fi-email" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Correo Electrónico *</label>
-                <input id="fi-email" type="email" placeholder="tu@email.com" required className="form-control" autoComplete="email" />
+                <input id="fi-email" name="email" type="email" placeholder="tu@email.com" required className="form-control" autoComplete="email" />
 
                 <label htmlFor="fi-tel" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Teléfono *</label>
-                <input id="fi-tel" type="tel" placeholder="+34 600 000 000" required className="form-control" autoComplete="tel" />
+                <input id="fi-tel" name="phone" type="tel" placeholder="+34 600 000 000" required className="form-control" autoComplete="tel" />
 
-                {g.formExtra}
+                {g.id === 'coro' && (
+                  <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
+                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Tipo de voz *</label>
+                    <select id="instrument" name="instrument" required className="form-control" style={{ background: '#fff' }} defaultValue="">
+                      <option value="" disabled>Elige...</option>
+                      <option>Soprano</option><option>Alto / Contralto</option><option>Tenor</option><option>Bajo / Barítono</option><option>No lo sé</option>
+                    </select>
+                  </div>
+                )}
+
+                {(g.id === 'metales' || g.id === 'bigband') && (
+                  <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
+                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Instrumento *</label>
+                    <select id="instrument" name="instrument" required className="form-control" style={{ background: '#fff' }} defaultValue="">
+                      <option value="" disabled>Elige...</option>
+                      {g.id === 'metales' ? (
+                        <>
+                          <option>Trompeta</option><option>Trompa</option><option>Trombón</option><option>Tuba</option><option>Otro Metal</option>
+                        </>
+                      ) : (
+                        <>
+                          <option>Saxofón Alto</option><option>Saxofón Tenor</option><option>Saxofón Barítono</option><option>Trompeta</option><option>Trombón</option><option>Batería</option><option>Guitarra</option><option>Bajo / Contrabajo</option><option>Piano</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                )}
 
                 <label htmlFor="fi-exp" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Experiencia musical (Opcional)</label>
-                <textarea id="fi-exp" placeholder="Cuéntanos un poco sobre tu trayectoria musical..." rows={3} className="form-control" />
+                <textarea id="fi-exp" name="experience" placeholder="Cuéntanos un poco sobre tu trayectoria musical..." rows={3} className="form-control" />
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 'var(--sp-2)' }}>
-                  Enviar Solicitud
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 'var(--sp-2)' }} disabled={loading}>
+                  {loading ? "Enviando solicitud..." : "Enviar Solicitud"}
                 </button>
               </form>
             </div>

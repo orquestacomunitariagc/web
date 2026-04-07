@@ -9,7 +9,7 @@ import CSVImportScores from '@/components/admin/CSVImportScores';
 import CSVImportUsers from '@/components/admin/CSVImportUsers';
 import AdminGuideModal from '@/components/admin/AdminGuideModal';
 
-type TabType = 'scores' | 'categories' | 'roles' | 'personal' | 'dashboard' | 'calendar' | 'logs';
+type TabType = 'scores' | 'categories' | 'roles' | 'personal' | 'dashboard' | 'calendar' | 'logs' | 'requests';
 const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
 
 export default function AdminOCGCPartituras() {
@@ -39,7 +39,13 @@ export default function AdminOCGCPartituras() {
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteSection, setInviteSection] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   
+  // Estados para solicitudes de unión
+  const [joinRequests, setJoinRequests] = useState<any[]>([]);
+  const [isJoinRequestsLoaded, setIsJoinRequestsLoaded] = useState(false);
+  const [filterRequestStatus, setFilterRequestStatus] = useState<string>('Pendiente');
+
   // Estados para vista previa de subida
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadIsDoc, setUploadIsDoc] = useState(false);
@@ -88,15 +94,18 @@ export default function AdminOCGCPartituras() {
   const loadMembers = async (force = false) => {
     if (!isMaster || (membersLoaded && !force)) return;
     try {
-      const [mRes, iRes] = await Promise.all([
+      const [mRes, iRes, jrRes] = await Promise.all([
         fetch("/api/admin/users"),
-        fetch("/api/admin/invitations")
+        fetch("/api/admin/invitations"),
+        fetch("/api/admin/join-requests")
       ]);
       if (mRes.ok) setMembers(await mRes.json());
       if (iRes.ok) setInvitations(await iRes.json());
+      if (jrRes.ok) setJoinRequests(await jrRes.json());
       setMembersLoaded(true);
+      setIsJoinRequestsLoaded(true);
     } catch (error) {
-      console.error("Error loading members/invitations:", error);
+      console.error("Error loading members/invitations/requests:", error);
     }
   };
 
@@ -113,7 +122,7 @@ export default function AdminOCGCPartituras() {
   useEffect(() => {
     if (activeTab === 'scores' || activeTab === 'categories' || activeTab === 'roles') {
       loadData();
-    } else if (activeTab === 'personal') {
+    } else if (activeTab === 'personal' || activeTab === 'requests') {
       loadMembers();
     }
   }, [activeTab]);
@@ -304,13 +313,18 @@ export default function AdminOCGCPartituras() {
       const res = await fetch("/api/admin/invitations", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ forWhom: `${inviteName} - ${inviteSection}` })
+        body: JSON.stringify({ 
+          forWhom: `${inviteName} - ${inviteSection}`,
+          email: inviteEmail || null
+        })
       });
       if (res.ok) {
         const newInvite = await res.json();
         setInvitations(prev => [newInvite, ...prev]);
         setInviteName('');
         setInviteSection('');
+        setInviteEmail('');
+        if (inviteEmail) alert(`¡Invitación enviada por correo a ${inviteEmail}!`);
       }
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -327,6 +341,36 @@ export default function AdminOCGCPartituras() {
     } catch (error) {
       console.error("Error deleting invitation:", error);
     }
+  };
+
+  const updateJoinRequestStatus = async (id: number, status: string, name?: string, email?: string) => {
+    try {
+      const res = await fetch("/api/admin/join-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) {
+        setJoinRequests(prev => prev.map(jr => jr.id === id ? { ...jr, status } : jr));
+        if (status === 'Aceptada' && name && email) {
+          setInviteName(name);
+          setInviteEmail(email);
+          setActiveTab('personal');
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 100);
+          alert(`Solicitud de ${name} aceptada. Se han precargado los datos para generar su invitación.`);
+        }
+      }
+    } catch (err) { console.error("Error updating status:", err); }
+  };
+
+  const deleteJoinRequest = async (id: number) => {
+    if (!confirm("¿Eliminar esta solicitud por completo?")) return;
+    try {
+      const res = await fetch(`/api/admin/join-requests?id=${id}`, { method: "DELETE" });
+      if (res.ok) setJoinRequests(prev => prev.filter(jr => jr.id !== id));
+    } catch (err) { console.error("Error deleting request:", err); }
   };
 
   if (!isLoaded) return <p>Cargando panel de gestión...</p>;
@@ -379,6 +423,18 @@ export default function AdminOCGCPartituras() {
           <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'active' : ''}>Calendario</button>
           {isMaster && (
             <>
+              <button 
+                onClick={() => setActiveTab('requests')} 
+                className={activeTab === 'requests' ? 'active' : ''}
+                style={{ position: 'relative' }}
+              >
+                Solicitudes
+                {joinRequests.filter(r => r.status === 'Pendiente').length > 0 && (
+                  <span style={{ position: 'absolute', top: -5, right: -5, background: 'var(--clr-danger)', color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '10px' }}>
+                    {joinRequests.filter(r => r.status === 'Pendiente').length}
+                  </span>
+                )}
+              </button>
               <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'active' : ''}>Personal</button>
               <button onClick={() => setActiveTab('logs')} className={activeTab === 'logs' ? 'active' : ''}>Logs</button>
             </>
@@ -693,13 +749,20 @@ export default function AdminOCGCPartituras() {
                 <option value="">-- Sección --</option>
                 {predefinedRoles.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
+              <input 
+                type="email" 
+                placeholder="Email de destino (Opcional, envía link automático)" 
+                value={inviteEmail} 
+                onChange={(e) => setInviteEmail(e.target.value)} 
+                style={{ flex: 2, padding: '0.8rem', borderRadius: '8px', border: '1px solid #ccc' }}
+              />
               <button 
                 onClick={createInvitation} 
                 className="btn-main-admin" 
-                style={{ width: 'auto', padding: '0.8rem 1.5rem' }}
+                style={{ width: 'auto', padding: '0.8rem 1.5rem', background: inviteEmail ? 'var(--clr-success)' : 'var(--clr-navy)' }}
                 disabled={isGeneratingInvite}
               >
-                {isGeneratingInvite ? "Generando..." : "Crear Invitación"}
+                {isGeneratingInvite ? "Generando..." : (inviteEmail ? "Generar y Enviar 📨" : "Crear Manual 🎟️")}
               </button>
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
@@ -729,7 +792,10 @@ export default function AdminOCGCPartituras() {
                 {invitations.map(inv => (
                   <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #ffeeba', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                      <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1a1a1a' }}>{inv.forWhom || "Invitado sin nombre"}</span>
+                      <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1a1a1a' }}>
+                        {inv.forWhom || "Invitado sin nombre"} 
+                        {inv.sentToEmail && <span style={{ fontSize: '0.8rem', marginLeft: '8px', fontWeight: 'normal', color: 'var(--clr-success)' }}>(Enviada a: {inv.sentToEmail})</span>}
+                      </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                         <code style={{ color: '#478AC9', fontSize: '0.9rem', background: '#f1f7fd', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{inv.code}</code>
                         <span style={{ fontSize: '0.75rem', color: '#999' }}>Expira: {new Date(inv.expiresAt).toLocaleDateString()}</span>
@@ -935,6 +1001,91 @@ export default function AdminOCGCPartituras() {
         .btn-copy-link { background: #478AC9; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s; }
         .btn-copy-link:hover { background: #357ABD; transform: translateY(-1px); }
       `}</style>
+      {isMaster && activeTab === 'requests' && (
+        <section className="admin-list-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <div>
+              <h2 style={{ color: 'var(--clr-navy)', margin: 0 }}>📩 Bandeja de Entrada</h2>
+              <p style={{ color: 'var(--clr-text-muted)', fontSize: '0.9rem' }}>Gestión de nuevas solicitudes de músicos (Sección /unete)</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select 
+                value={filterRequestStatus} 
+                onChange={(e) => setFilterRequestStatus(e.target.value)}
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid var(--clr-border)' }}
+              >
+                <option value="Pendiente">Solo Pendientes</option>
+                <option value="Aceptada">Aceptadas</option>
+                <option value="Rechazada">Rechazadas</option>
+                <option value="all">Todas</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            {joinRequests
+              .filter(r => filterRequestStatus === 'all' || r.status === filterRequestStatus)
+              .map(r => (
+                <div key={r.id} style={{ padding: '1.5rem', background: '#fff', borderRadius: '12px', border: '1px solid var(--clr-border)', boxShadow: 'var(--shadow-xs)', display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1.5rem', alignItems: 'start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--clr-navy)' }}>{r.name}</span>
+                      <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: r.status === 'Pendiente' ? 'var(--clr-primary-lt)' : (r.status === 'Aceptada' ? 'var(--clr-success-lt)' : 'var(--clr-danger-lt)'), color: r.status === 'Pendiente' ? 'var(--clr-primary)' : (r.status === 'Aceptada' ? 'var(--clr-success)' : 'var(--clr-danger)') }}>
+                        {r.status}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--clr-text-muted)', display: 'flex', gap: '1rem' }}>
+                      <span>📧 {r.email}</span>
+                      <span>📞 {r.phone}</span>
+                    </p>
+                    <div style={{ marginTop: '0.8rem', padding: '1rem', background: 'var(--clr-light)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--clr-navy-mid)', border: '1px solid #e1e8ed' }}>
+                      <strong>Experiencia:</strong> {r.experience || "No especificada"}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--clr-gold)', fontWeight: 800, textTransform: 'uppercase' }}>Interesado en:</p>
+                    <p style={{ margin: 0, fontWeight: 700, color: 'var(--clr-navy)' }}>{r.group}</p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--clr-text-muted)' }}>{r.instrument}</p>
+                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.7rem', color: '#999' }}>Recibida: {new Date(r.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {r.status === 'Pendiente' && (
+                      <>
+                        <button 
+                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
+                          className="btn-main-admin"
+                          style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none' }}
+                        >
+                          Aceptar y Generar Token
+                        </button>
+                        <button 
+                          onClick={() => updateJoinRequestStatus(r.id, 'Rechazada')}
+                          className="btn-onboarding-secondary"
+                          style={{ fontSize: '0.75rem', padding: '0.6rem' }}
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+                    <button 
+                      onClick={() => deleteJoinRequest(r.id)}
+                      style={{ fontSize: '0.7rem', background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', opacity: 0.7 }}
+                    >
+                      🗑️ Eliminar físicamente
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+            {joinRequests.filter(r => filterRequestStatus === 'all' || r.status === filterRequestStatus).length === 0 && (
+              <div style={{ textAlign: 'center', padding: '4rem', background: 'var(--clr-light)', borderRadius: '12px', border: '1px dashed var(--clr-border)', color: 'var(--clr-text-muted)' }}>
+                No hay solicitudes {filterRequestStatus !== 'all' ? `con estado '${filterRequestStatus}'` : ""} en este momento.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
     </div>
   );
 }
