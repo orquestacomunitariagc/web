@@ -46,7 +46,15 @@ export default async function MiembrosPage() {
         </ul>
       </section>
 
-      <section style={{ marginTop: "3rem" }} className="card" style={{ padding: 'var(--sp-8)', background: 'var(--clr-navy-lt)', border: 'none' }}>
+      <section 
+        className="card" 
+        style={{ 
+          marginTop: "3rem", 
+          padding: 'var(--sp-8)', 
+          background: 'var(--clr-navy-lt)', 
+          border: 'none' 
+        }}
+      >
         <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--clr-navy)' }}>Siguiente paso</h2>
         <p>Aquí conectaríamos con la base de datos Neon (Drizzle) para buscar en la tabla <code>scores</code> las partituras donde <code>allowedRoles</code> coincida con tus roles actuales.</p>
       </section>
