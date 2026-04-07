@@ -20,7 +20,9 @@ export async function GET() {
     const csvContent = logs.map(l => {
       // Extraemos la info resumida si el details es JSON
       const d = l.details as any;
-      const detailsStr = typeof d === 'object' ? JSON.stringify(d).replace(/"/g, '""') : (l.details || '').replace(/"/g, '""');
+      const detailsStr = typeof d === 'object' 
+        ? JSON.stringify(d).replace(/"/g, '""') 
+        : String(l.details || '').replace(/"/g, '""');
       return `${l.id},"${new Date(l.createdAt).toLocaleString()}","${l.action}","${l.userClerkId}","${detailsStr}"`;
     }).join('\n');
 

@@ -48,16 +48,25 @@
 }
 
 .highlight-admin {
-  background: linear-gradient(135deg, #e84393, #f82b60);
+  background: var(--clr-navy);
   color: white !important;
-  padding: var(--sp-2) var(--sp-4) !important;
+  padding: var(--sp-2) var(--sp-5) !important;
   border-radius: var(--radius-full) !important;
-  box-shadow: 0 4px 12px rgba(248,43,96,0.25);
+  box-shadow: 0 4px 12px rgba(13,27,42,0.15);
+  border: 1.5px solid transparent;
+  transition: all var(--ease-mid);
 }
 
 .highlight-admin:hover {
-  background: linear-gradient(135deg, #d13080, #e62050) !important;
-  color: white !important;
+  background: var(--clr-navy-mid) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(13,27,42,0.2);
+}
+
+.highlight-admin.active {
+  border-color: var(--clr-gold);
+  background: var(--clr-navy) !important;
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.2);
 }
 
 .miembros-user-area {

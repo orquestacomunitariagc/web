@@ -11,7 +11,7 @@ export async function GET() {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const requests = await prisma.joinRequest.findMany({
+    const requests = await (prisma as any).joinRequest.findMany({
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(requests);
@@ -33,7 +33,7 @@ export async function PATCH(req: Request) {
     const { id, status } = await req.json();
     if (!id || !status) return new NextResponse("Missing fields", { status: 400 });
 
-    const updated = await prisma.joinRequest.update({
+    const updated = await (prisma as any).joinRequest.update({
       where: { id: parseInt(id) },
       data: { status }
     });
@@ -59,7 +59,7 @@ export async function DELETE(req: Request) {
 
     if (!id) return new NextResponse("Missing ID", { status: 400 });
 
-    await prisma.joinRequest.delete({
+    await (prisma as any).joinRequest.delete({
       where: { id: parseInt(id) }
     });
 

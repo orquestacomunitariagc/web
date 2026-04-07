@@ -1015,6 +1015,7 @@ export default function AdminOCGCPartituras() {
                 style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid var(--clr-border)' }}
               >
                 <option value="Pendiente">Solo Pendientes</option>
+                <option value="Evaluando">En Evaluación</option>
                 <option value="Aceptada">Aceptadas</option>
                 <option value="Rechazada">Rechazadas</option>
                 <option value="all">Todas</option>
@@ -1030,8 +1031,20 @@ export default function AdminOCGCPartituras() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                       <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--clr-navy)' }}>{r.name}</span>
-                      <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: r.status === 'Pendiente' ? 'var(--clr-primary-lt)' : (r.status === 'Aceptada' ? 'var(--clr-success-lt)' : 'var(--clr-danger-lt)'), color: r.status === 'Pendiente' ? 'var(--clr-primary)' : (r.status === 'Aceptada' ? 'var(--clr-success)' : 'var(--clr-danger)') }}>
-                        {r.status}
+                      <span style={{ 
+                        fontSize: '0.7rem', 
+                        textTransform: 'uppercase', 
+                        fontWeight: 700, 
+                        padding: '2px 8px', 
+                        borderRadius: '4px', 
+                        background: r.status === 'Pendiente' ? 'var(--clr-primary-lt)' : 
+                                   (r.status === 'Evaluando' ? '#fef3c7' : 
+                                   (r.status === 'Aceptada' ? 'var(--clr-success-lt)' : 'var(--clr-danger-lt)')), 
+                        color: r.status === 'Pendiente' ? 'var(--clr-primary)' : 
+                               (r.status === 'Evaluando' ? '#d97706' : 
+                               (r.status === 'Aceptada' ? 'var(--clr-success)' : 'var(--clr-danger)')) 
+                      }}>
+                        {r.status === 'Evaluando' ? '🔍 Evaluando' : r.status}
                       </span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--clr-text-muted)', display: 'flex', gap: '1rem' }}>
@@ -1049,23 +1062,32 @@ export default function AdminOCGCPartituras() {
                     <p style={{ margin: '0.5rem 0 0', fontSize: '0.7rem', color: '#999' }}>Recibida: {new Date(r.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(r.status === 'Pendiente' || r.status === 'Evaluando') && (
+                      <button 
+                        onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
+                        className="btn-main-admin"
+                        style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none' }}
+                      >
+                        Aceptar ✅
+                      </button>
+                    )}
                     {r.status === 'Pendiente' && (
-                      <>
-                        <button 
-                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
-                          className="btn-main-admin"
-                          style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none' }}
-                        >
-                          Aceptar y Generar Token
-                        </button>
-                        <button 
-                          onClick={() => updateJoinRequestStatus(r.id, 'Rechazada')}
-                          className="btn-onboarding-secondary"
-                          style={{ fontSize: '0.75rem', padding: '0.6rem' }}
-                        >
-                          Rechazar
-                        </button>
-                      </>
+                      <button 
+                        onClick={() => updateJoinRequestStatus(r.id, 'Evaluando')}
+                        className="btn-onboarding-secondary"
+                        style={{ fontSize: '0.75rem', padding: '0.6rem', borderColor: '#d97706', color: '#d97706' }}
+                      >
+                        Pasar a Evaluación 🔍
+                      </button>
+                    )}
+                    {(r.status === 'Pendiente' || r.status === 'Evaluando') && (
+                      <button 
+                        onClick={() => updateJoinRequestStatus(r.id, 'Rechazada')}
+                        className="btn-onboarding-secondary"
+                        style={{ fontSize: '0.75rem', padding: '0.6rem' }}
+                      >
+                        Rechazar ❌
+                      </button>
                     )}
                     <button 
                       onClick={() => deleteJoinRequest(r.id)}

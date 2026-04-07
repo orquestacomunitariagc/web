@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Guardamos en la base de datos
-    const request = await prisma.joinRequest.create({
+    const request = await (prisma as any).joinRequest.create({
       data: {
         name,
         email,

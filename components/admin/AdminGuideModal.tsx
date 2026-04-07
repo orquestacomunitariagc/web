@@ -68,6 +68,17 @@ const HELPS = {
       "Los logs son inmutables y sirven para resolver conflictos de gestión.",
       "Exporta el historial a CSV para informes de actividad mensuales."
     ]
+  },
+  requests: {
+    title: "📩 Bandeja de Solicitudes",
+    desc: "Gestión de músicos interesados en unirse a la OCGC.",
+    steps: [
+      "Recibe todas las peticiones enviadas desde la sección pública '/unete'.",
+      "Evaluando: Usa este estado para peticiones que necesiten una revisión técnica adicional, como consultar con un jefe de sección o planificar una audición.",
+      "Aceptar: Marca la solicitud como aceptada y te lleva automáticamente a generar su invitación nominativa (precarga nombre e email).",
+      "Rechazar: Descarte de perfiles que no se ajustan a las necesidades actuales.",
+      "Filtros: Usa el selector superior para organizar tu flujo de trabajo (Pendientes, En Evaluación, etc.)."
+    ]
   }
 };
 

@@ -19,14 +19,20 @@ export async function GET() {
     const clerk = await (await clerkClient()).users;
     const response = await clerk.getUserList({ limit: 100 });
 
+    // Use a safe cast to handle Clerk v5+ property names
+    const res = response as any;
+    const totalCount = res.totalCount ?? res.meta?.total_count ?? 0;
+
     // Paginate if needed
-    if (response.data.length < response.meta.total_count) {
-      const nextToken = response.meta.next_page_token;
-      const page2 = await clerk.getUserList({
-        limit: 100,
-        page_token: nextToken
-      });
-      response.data = [...response.data, ...page2.data];
+    if (response.data.length < totalCount) {
+      const nextToken = res.meta?.next_page_token;
+      if (nextToken) {
+        const page2 = await clerk.getUserList({
+          limit: 100,
+          page_token: nextToken
+        } as any);
+        (response.data as any) = [...response.data, ...page2.data];
+      }
     }
 
     const members = response.data.map((u: any) => ({
