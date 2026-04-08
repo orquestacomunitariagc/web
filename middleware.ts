@@ -6,6 +6,7 @@ const isProtectedRoute = createRouteMatcher(['/miembros(.*)', '/api/(.*)']);
 // Rutas que son públicas (aunque estén en /api)
 const isPublicRoute = createRouteMatcher([
   '/api/auth/register-musician',
+  '/api/auth/validate-invite',
   '/api/roles',
   '/api/agrupaciones',
   '/api/unete',

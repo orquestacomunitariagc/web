@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logger';
 
 // 🔍 Listar solicitudes (Admin Only)
 export async function GET() {
@@ -23,8 +24,8 @@ export async function GET() {
 
 // ✍️ Actualizar estado (Admin Only)
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
@@ -38,6 +39,11 @@ export async function PATCH(req: Request) {
       data: { status }
     });
 
+    await logActivity("Solicitud de unión Actualizada", clerkId, { 
+      músico: updated.name, 
+      nuevoEstado: status 
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating join request:", error);
@@ -47,20 +53,28 @@ export async function PATCH(req: Request) {
 
 // 🗑️ Eliminar solicitud (Admin Only)
 export async function DELETE(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const idStr = searchParams.get('id');
 
-    if (!id) return new NextResponse("Missing ID", { status: 400 });
+    if (!idStr) return new NextResponse("Missing ID", { status: 400 });
+    const id = parseInt(idStr);
+
+    const request = await (prisma as any).joinRequest.findUnique({ where: { id } });
 
     await (prisma as any).joinRequest.delete({
-      where: { id: parseInt(id) }
+      where: { id }
+    });
+
+    await logActivity("Solicitud de unión Eliminada", clerkId, { 
+      id, 
+      músico: request?.name || "Desconocido" 
     });
 
     return NextResponse.json({ success: true });

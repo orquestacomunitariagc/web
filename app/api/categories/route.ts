@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { logActivity } from "@/lib/logger";
 
 export async function GET() {
   const categories = await prisma.category.findMany({
@@ -10,8 +11,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   const isMaster = !!user?.publicMetadata?.isMaster;
@@ -24,6 +25,11 @@ export async function POST(req: Request) {
       name,
       eventDate: eventDate ? new Date(eventDate) : null
     }
+  });
+
+  await logActivity("Programa Creado", clerkId, { 
+    nombre: name, 
+    fecha: eventDate || "Sin fecha" 
   });
 
   return NextResponse.json(newCategory);

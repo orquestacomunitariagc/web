@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { logActivity } from "@/lib/logger";
 
 // GET devuelve las secciones agrupadas por familia para el diccionario
 export async function GET() {
@@ -20,8 +21,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   const isMaster = !!user?.publicMetadata?.isMaster;
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
         familia: familia || "Otros"
       }
     });
+
+    await logActivity("Instrumento/Sección Añadida", clerkId, { 
+      nombre: name, 
+      familia: familia || "Otros" 
+    });
+
     return NextResponse.json({ id: newSeccion.id, name: newSeccion.seccion, familia: newSeccion.familia });
   } catch (error) {
     console.error("Error creating seccion:", error);
@@ -44,19 +51,27 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+  const idStr = searchParams.get("id");
 
-  if (!id) return new NextResponse("ID Missing", { status: 400 });
+  if (!idStr) return new NextResponse("ID Missing", { status: 400 });
+  const id = parseInt(idStr);
 
   try {
-    await prisma.seccion.delete({ where: { id: parseInt(id) } });
+    const seccion = await prisma.seccion.findUnique({ where: { id } });
+    await prisma.seccion.delete({ where: { id } });
+
+    await logActivity("Instrumento/Sección Eliminada", clerkId, { 
+      id, 
+      nombre: seccion?.seccion || "Desconocido" 
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return new NextResponse("Error deleting", { status: 500 });

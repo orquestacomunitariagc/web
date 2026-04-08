@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { EventType } from '@prisma/client';
+import { logActivity } from '@/lib/logger';
 
 export async function GET() {
   const { userId } = await auth();
@@ -22,8 +23,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
@@ -31,8 +32,7 @@ export async function POST(req: Request) {
   try {
     const { title, date, location, description, type } = await req.json();
 
-    // Validar tipo de evento para evitar errores con el Enum
-    const validTypes = ['Ensayo', 'Concierto'];
+    const validTypes = ['Ensayo', 'Concierto', 'Reunión'];
     if (!validTypes.includes(type)) {
       return new NextResponse("Invalid event type", { status: 400 });
     }
@@ -47,18 +47,11 @@ export async function POST(req: Request) {
       }
     });
 
-    await prisma.activityLog.create({
-      data: {
-        action: "Create Event",
-        details: JSON.stringify({
-          title,
-          date,
-          type,
-          location,
-          id: (event as any).id
-        }),
-        userClerkId: userId
-      }
+    await logActivity("Evento Programado", clerkId, { 
+      titulo: title, 
+      tipo: type, 
+      fecha: date, 
+      lugar: location || "N/A" 
     });
 
     return NextResponse.json(event);

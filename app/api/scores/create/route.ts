@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { put } from "@vercel/blob";
-import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/logger";
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId: clerkId } = await auth();
   
-  if (!userId) {
+  if (!clerkId) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -39,10 +39,9 @@ export async function POST(req: Request) {
     return new NextResponse("Debes seleccionar al menos un instrumento o marcarlo como Documento (Público).", { status: 400 });
   }
 
-  // 1. Crear un nombre descriptivo para el archivo (Obra_Secciones.pdf)
+  // 1. Subir a Vercel Blob
   let fileUrl = "";
   try {
-    // Sanitizar el título y los roles eliminando espacios y caracteres especiales conflictivos
     const cleanTitle = title.trim().replace(/[^a-zA-Z0-9_]/g, "_");
     const rolesSuffix = isDocument 
       ? "Documento" 
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
     return new NextResponse("Error subiendo el archivo al servidor de nube", { status: 500 });
   }
 
-  // 2. Guardar en la base de datos de Neon
+  // 2. Guardar en la base de datos
   try {
     const newScore = await prisma.score.create({
       data: {
@@ -68,13 +67,20 @@ export async function POST(req: Request) {
         isDocument,
         categoryId: categoryId ? parseInt(categoryId) : null,
         allowedRoles: rolesRaw.map(r => String(r))
-      }
+      },
+      include: { category: true }
     });
-    console.log("Score creado correctamente:", newScore.id);
+    
+    // LOG ACTIVIDAD
+    await logActivity("Nueva Partitura Publicada", clerkId, { 
+      titulo: title, 
+      programa: newScore.category?.name || "Sin programa",
+      esDocumento: isDocument 
+    });
+
+    return NextResponse.json(newScore);
   } catch (error) {
     console.error("Error creating score in Prisma:", error);
     return new NextResponse("Error en la base de datos al guardar la partitura", { status: 500 });
   }
-
-  return redirect("/miembros/gestion?success=true");
 }

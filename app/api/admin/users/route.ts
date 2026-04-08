@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
+import { logActivity } from "@/lib/logger";
 
 export async function GET() {
   const user = await currentUser();
@@ -36,15 +37,22 @@ export async function POST(req: Request) {
   const { userId, roles, action, isArchiver, isMaster } = body;
 
   try {
+     const client = await clerkClient();
+     const targetUser = await client.users.getUser(userId);
+     const targetName = [targetUser.firstName, targetUser.lastName].filter(Boolean).join(" ") || targetUser.username || userId;
+
      // Acción para actualizar Roles (Instrumentos)
      if (action === "update-roles") {
-        const currentUser = await (await clerkClient()).users.getUser(userId);
-        const currentMetadata = (currentUser.publicMetadata || {}) as any;
-        await (await clerkClient()).users.updateUserMetadata(userId, {
+        const currentMetadata = (targetUser.publicMetadata || {}) as any;
+        await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             ...currentMetadata,
             roles
           }
+        });
+        await logActivity("Actualización de Instrumentos", user.id, { 
+          target: targetName, 
+          newRoles: roles 
         });
      }
 
@@ -52,33 +60,43 @@ export async function POST(req: Request) {
      if (action === "toggle-ban") {
         const { isBanned } = body;
         if (isBanned) {
-          await (await clerkClient()).users.banUser(userId);
+          await client.users.banUser(userId);
+          await logActivity("Usuario Baneado", user.id, { target: targetName });
         } else {
-          await (await clerkClient()).users.unbanUser(userId);
+          await client.users.unbanUser(userId);
+          await logActivity("Usuario Desbaneado", user.id, { target: targetName });
         }
      }
 
      // Acción para cambiar permiso de Archivero
      if (action === "toggle-archiver") {
-        const currentUser = await (await clerkClient()).users.getUser(userId);
-        const currentMetadata = (currentUser.publicMetadata || {}) as any;
-        await (await clerkClient()).users.updateUserMetadata(userId, {
+        const currentMetadata = (targetUser.publicMetadata || {}) as any;
+        const newValue = isArchiver !== undefined ? isArchiver : !currentMetadata.isArchiver;
+        await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             ...currentMetadata,
-            isArchiver: isArchiver !== undefined ? isArchiver : !currentMetadata.isArchiver
+            isArchiver: newValue
           }
+        });
+        await logActivity("Cambio permiso Archivero", user.id, { 
+          target: targetName, 
+          isArchiver: newValue 
         });
      }
 
      // Acción para cambiar permiso de Master
      if (action === "toggle-master") {
-        const currentUser = await (await clerkClient()).users.getUser(userId);
-        const currentMetadata = (currentUser.publicMetadata || {}) as any;
-        await (await clerkClient()).users.updateUserMetadata(userId, {
+        const currentMetadata = (targetUser.publicMetadata || {}) as any;
+        const newValue = isMaster !== undefined ? isMaster : !currentMetadata.isMaster;
+        await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             ...currentMetadata,
-            isMaster: isMaster !== undefined ? isMaster : !currentMetadata.isMaster
+            isMaster: newValue
           }
+        });
+        await logActivity("Cambio permiso Master", user.id, { 
+          target: targetName, 
+          isMaster: newValue 
         });
      }
 

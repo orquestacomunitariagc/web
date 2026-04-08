@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logger';
 
 export async function GET() {
   const { userId } = await auth();
@@ -23,14 +24,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const { forWhom, email } = await req.json();
+    const { nombre, email, apellidos, telefono, agrupacion, seccion, agrupacion2, seccion2, agrupacion3, seccion3 } = await req.json();
 
     const code = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date();
@@ -39,22 +40,34 @@ export async function POST(req: Request) {
     const invitation = await prisma.invitationCode.create({
       data: {
         code,
-        forWhom,
+        nombre,
         sentToEmail: email || null,
-        expiresAt
+        expiresAt,
+        apellidos: apellidos || null,
+        telefono: telefono || null,
+        agrupacion: agrupacion || null,
+        seccion: seccion || null,
+        agrupacion2: agrupacion2 || null,
+        seccion2: seccion2 || null,
+        agrupacion3: agrupacion3 || null,
+        seccion3: seccion3 || null
       }
     });
 
-    if (email) {
+    if (email && nombre) {
       const { sendInvitationEmail } = await import("@/lib/email");
       try {
-        // Obtenemos solo el nombre (el forWhom suele ser "Nombre - Seccion")
-        const nameOnly = forWhom.split(" - ")[0];
-        await sendInvitationEmail(email, nameOnly, code);
+        await sendInvitationEmail(email, nombre, code);
       } catch (err) {
         console.error("Error enviando email invitacion:", err);
       }
     }
+
+    await logActivity("Invitación Generada", clerkId, { 
+      destinatario: nombre, 
+      emailSent: !!email,
+      codigo: code 
+    });
 
     return NextResponse.json(invitation);
   } catch (error) {
@@ -64,20 +77,28 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const idStr = searchParams.get('id');
 
-    if (!id) return new NextResponse("Missing ID", { status: 400 });
+    if (!idStr) return new NextResponse("Missing ID", { status: 400 });
+    const id = parseInt(idStr);
+
+    const invitation = await prisma.invitationCode.findUnique({ where: { id } });
 
     await prisma.invitationCode.delete({
-      where: { id: parseInt(id) }
+      where: { id }
+    });
+
+    await logActivity("Invitación Revocada", clerkId, { 
+      id, 
+      destinatario: invitation?.nombre || "Desconocido" 
     });
 
     return NextResponse.json({ success: true });

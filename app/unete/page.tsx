@@ -74,6 +74,8 @@ export default function UnetePage() {
 
     const data = {
       name: `${formData.get("first_name")} ${formData.get("last_name")}`,
+      first_name: formData.get("first_name"),
+      last_name: formData.get("last_name"),
       email: formData.get("email"),
       phone: `${formData.get("phone_prefix")} ${formData.get("phone")}`,
       experience: formData.get("experience"),

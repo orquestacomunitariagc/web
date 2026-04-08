@@ -75,7 +75,25 @@ export default function PaginaRegistroSecreta() {
         body: JSON.stringify({ code: inviteToken })
       });
       const data = await res.json();
-      if (res.ok) setStep(1);
+      if (res.ok) {
+        setStep(1);
+        setFormData(prev => ({
+          ...prev,
+          firstName: data.nombre || prev.firstName,
+          surname: data.apellidos || prev.surname,
+          email: data.email || prev.email,
+          phone: data.telefono || prev.phone,
+          agrupacion: data.agrupacion || prev.agrupacion,
+          instrument: data.seccion || prev.instrument,
+          agrupacion2: data.agrupacion2 || prev.agrupacion2,
+          instrument2: data.seccion2 || prev.instrument2,
+          agrupacion3: data.agrupacion3 || prev.agrupacion3,
+          instrument3: data.seccion3 || prev.instrument3,
+        }));
+        if (data.email) {
+          setConfirmEmail(data.email);
+        }
+      }
       else setStatus({ success: false, msg: data.error || "Código de invitación no válido o expirado." });
     } catch (error) {
       setStatus({ success: false, msg: "Error al validar el código. Comprueba tu conexión." });

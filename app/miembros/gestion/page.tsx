@@ -39,8 +39,15 @@ export default function AdminOCGCPartituras() {
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [inviteName, setInviteName] = useState('');
+  const [inviteSurname, setInviteSurname] = useState('');
   const [inviteSection, setInviteSection] = useState('');
+  const [inviteAgrupacion, setInviteAgrupacion] = useState('');
+  const [inviteSection2, setInviteSection2] = useState('');
+  const [inviteAgrupacion2, setInviteAgrupacion2] = useState('');
+  const [inviteSection3, setInviteSection3] = useState('');
+  const [inviteAgrupacion3, setInviteAgrupacion3] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePhone, setInvitePhone] = useState('');
   
   // Estados para solicitudes de unión
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
@@ -344,8 +351,16 @@ export default function AdminOCGCPartituras() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          forWhom: `${inviteName} - ${inviteSection}`,
-          email: inviteEmail || null
+          nombre: inviteName || null,
+          email: inviteEmail || null,
+          telefono: invitePhone || null,
+          apellidos: inviteSurname || null,
+          agrupacion: inviteAgrupacion || null,
+          seccion: inviteSection || null,
+          agrupacion2: inviteAgrupacion2 || null,
+          seccion2: inviteSection2 || null,
+          agrupacion3: inviteAgrupacion3 || null,
+          seccion3: inviteSection3 || null
         })
       });
       if (res.ok) {
@@ -363,8 +378,15 @@ export default function AdminOCGCPartituras() {
         }
 
         setInviteName('');
+        setInviteSurname('');
         setInviteSection('');
+        setInviteAgrupacion('');
+        setInviteSection2('');
+        setInviteAgrupacion2('');
+        setInviteSection3('');
+        setInviteAgrupacion3('');
         setInviteEmail('');
+        setInvitePhone('');
       }
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -583,63 +605,13 @@ export default function AdminOCGCPartituras() {
               <tbody>
                 {filteredScores.map(s => (
                   <tr key={s.id}>
-                    {editingScore?.id === s.id ? (
-                      <td colSpan={2}>
-                        <div className="edit-score-form" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                          <input type="text" value={editingScore.title} onChange={(e) => setEditingScore({...editingScore, title: e.target.value})} style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }} />
-                          <select value={editingScore.categoryId || ''} onChange={(e) => setEditingScore({...editingScore, categoryId: e.target.value ? parseInt(e.target.value) : null})} style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}>
-                            <option value="">-- Sin programa --</option>
-                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                          </select>
-                          <label style={{ fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <input type="checkbox" checked={editingScore.isDocument} onChange={(e) => setEditingScore({...editingScore, isDocument: e.target.checked})} />
-                            Es Documento General
-                          </label>
-                          {!editingScore.isDocument && (
-                            <div className="instrument-chips-grid" style={{ marginTop: '0' }}>
-                              {predefinedRoles.map(r => {
-                                const isSelected = editingScore.allowedRoles?.includes(r);
-                                return (
-                                  <label key={r} className={`instrument-chip ${isSelected ? 'selected' : ''}`}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={isSelected} 
-                                      onChange={() => {
-                                        const newRoles = isSelected 
-                                          ? editingScore.allowedRoles.filter((ar:string) => ar !== r)
-                                          : [...(editingScore.allowedRoles || []), r];
-                                        setEditingScore({...editingScore, allowedRoles: newRoles});
-                                      }}
-                                      style={{ display: 'none' }} 
-                                    />
-                                    {r}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    ) : (
-                      <>
-                        <td className="score-title">{s.title}</td>
-                        <td className="score-roles">
-                          {s.isDocument ? <span style={{color: '#e67e22', fontWeight: 600}}>DOCUMENTO</span> : (s.allowedRoles?.join(", ") || "Todos")}
-                        </td>
-                      </>
-                    )}
+                    <td className="score-title">{s.title}</td>
+                    <td className="score-roles">
+                      {s.isDocument ? <span style={{color: '#e67e22', fontWeight: 600}}>DOCUMENTO</span> : (s.allowedRoles?.join(", ") || "Todos")}
+                    </td>
                     <td className="action-buttons">
-                      {editingScore?.id === s.id ? (
-                        <>
-                          <button onClick={updateScore} className="btn-save">✓</button>
-                          <button onClick={() => setEditingScore(null)} className="btn-cancel">✕</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => setEditingScore(s)} className="btn-edit">Editar</button>
-                          <button onClick={() => deleteScore(s.id)} className="btn-delete">Eliminar</button>
-                        </>
-                      )}
+                      <button onClick={() => setEditingScore(s)} className="btn-edit">Editar</button>
+                      <button onClick={() => deleteScore(s.id)} className="btn-delete">Eliminar</button>
                     </td>
                   </tr>
                 ))}
@@ -648,10 +620,72 @@ export default function AdminOCGCPartituras() {
             </div>
           </section>
         </div>
+
+        {/* Modal Edición de Partitura */}
+        {editingScore && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '600px' }}>
+              <div className="modal-header">
+                <div>
+                  <h2>Editar: {editingScore.title}</h2>
+                </div>
+                <button onClick={() => setEditingScore(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Título</label>
+                  <input type="text" value={editingScore.title} onChange={(e) => setEditingScore({...editingScore, title: e.target.value})} style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Programa</label>
+                  <select value={editingScore.categoryId || ''} onChange={(e) => setEditingScore({...editingScore, categoryId: e.target.value ? parseInt(e.target.value) : null})} style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}>
+                    <option value="">-- Sin programa --</option>
+                    {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                  </select>
+                </div>
+                <label style={{ fontSize: '0.95rem', display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={editingScore.isDocument} onChange={(e) => setEditingScore({...editingScore, isDocument: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                  Es Documento General (Público para todos)
+                </label>
+                {!editingScore.isDocument && (
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Secciones con acceso permitido</label>
+                    <div className="instrument-chips-grid" style={{ marginTop: 0, padding: '1rem', border: '1px solid #eee', borderRadius: '8px', background: '#fcfcfc', maxHeight: '180px', overflowY: 'auto' }}>
+                      {predefinedRoles.map(r => {
+                        const isSelected = editingScore.allowedRoles?.includes(r);
+                        return (
+                          <label key={r} className={`instrument-chip ${isSelected ? 'selected' : ''}`}>
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected} 
+                              onChange={() => {
+                                const newRoles = isSelected 
+                                  ? editingScore.allowedRoles.filter((ar:string) => ar !== r)
+                                  : [...(editingScore.allowedRoles || []), r];
+                                setEditingScore({...editingScore, allowedRoles: newRoles});
+                              }}
+                              style={{ display: 'none' }} 
+                            />
+                            {r}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingScore(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={updateScore} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
       )}
 
       {activeTab === 'categories' && (
+        <>
         <div className="admin-content-grid">
           <section className="admin-form-card">
             <h2>Nuevo Programa</h2>
@@ -681,39 +715,15 @@ export default function AdminOCGCPartituras() {
               <tbody>
                 {filteredCategories.map(c => (
                   <tr key={c.id}>
-                    <td>{editingCategory?.id === c.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                        <input
-                          type="text"
-                          value={editingCategory!.name}
-                          onChange={(e) => setEditingCategory({ ...editingCategory!, name: e.target.value })}
-                          style={{ flex: 1, padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                        />
-                        <input
-                          type="date"
-                          value={editingCategory!.eventDate ? new Date(editingCategory!.eventDate).toISOString().split('T')[0] : ''}
-                          onChange={(e) => setEditingCategory({ ...editingCategory!, eventDate: e.target.value })}
-                          style={{ padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                        />
-                      </div>
-                    ) : (
+                    <td>
                       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontWeight: 600 }}>{c.name}</span>
                         {c.eventDate && <span style={{fontSize:'0.8rem', color:'#888', backgroundColor: '#eee', padding: '0.2rem 0.6rem', borderRadius: '12px'}}>{new Date(c.eventDate).toLocaleDateString()}</span>}
                       </div>
-                    )}</td>
+                    </td>
                     <td className="action-buttons">
-                      {editingCategory?.id === c.id ? (
-                        <>
-                          <button onClick={updateCategory} className="btn-save">✓</button>
-                          <button onClick={() => setEditingCategory(null)} className="btn-cancel">✕</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => setEditingCategory(c)} className="btn-edit">Editar</button>
-                          <button onClick={() => deleteCategory(c.id)} className="btn-delete">Eliminar</button>
-                        </>
-                      )}
+                      <button onClick={() => setEditingCategory(c)} className="btn-edit">Editar</button>
+                      <button onClick={() => deleteCategory(c.id)} className="btn-delete">Eliminar</button>
                     </td>
                   </tr>
                 ))}
@@ -722,9 +732,49 @@ export default function AdminOCGCPartituras() {
             </div>
           </section>
         </div>
+
+        {/* Modal Edición de Categoria / Programa */}
+        {editingCategory && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '500px' }}>
+              <div className="modal-header">
+                <div>
+                  <h2>Editar Programa</h2>
+                </div>
+                <button onClick={() => setEditingCategory(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Nombre del Programa</label>
+                  <input
+                    type="text"
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Fecha del evento (opcional)</label>
+                  <input
+                    type="date"
+                    value={editingCategory.eventDate ? new Date(editingCategory.eventDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, eventDate: e.target.value })}
+                    style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingCategory(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={updateCategory} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
+              </div>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {activeTab === 'roles' && (
+        <>
         <div className="admin-content-grid">
           <section className="admin-form-card">
             <h2>Nuevo Instrumento / Tag</h2>
@@ -762,8 +812,15 @@ export default function AdminOCGCPartituras() {
                         <div key={inst.id} style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #ccc', padding: '0.3rem 0.7rem', borderRadius: '20px', fontSize: '0.85rem' }}>
                           <span>{inst.name}</span>
                           <button 
+                            onClick={() => setEditingRole({ id: inst.id, name: inst.name })} 
+                            style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#478AC9', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}
+                            title="Editar"
+                          >
+                            ✎
+                          </button>
+                          <button 
                             onClick={() => deleteRole(inst.id)} 
-                            style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold' }}
+                            style={{ marginLeft: '4px', border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem' }}
                             title="Eliminar"
                           >
                             ×
@@ -777,6 +834,51 @@ export default function AdminOCGCPartituras() {
             </div>
           </section>
         </div>
+
+        {/* Modal Edición de Rol / Instrumento */}
+        {editingRole && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
+              <div className="modal-header">
+                <div>
+                  <h2>Editar Instrumento o Sección</h2>
+                </div>
+                <button onClick={() => setEditingRole(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body">
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Nombre</label>
+                  <input
+                    type="text"
+                    value={editingRole.name}
+                    onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
+                    style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingRole(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={async () => {
+                  if (!editingRole.name.trim()) return;
+                  try {
+                    const res = await fetch(`/api/roles/${editingRole.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: editingRole.name })
+                    });
+                    if (res.ok) {
+                      loadData(true);
+                      setEditingRole(null);
+                    } else {
+                      alert("No se ha podido actualizar la sección.");
+                    }
+                  } catch(e) { }
+                }} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
+              </div>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {isMaster && activeTab === 'personal' && (
@@ -784,38 +886,91 @@ export default function AdminOCGCPartituras() {
           <div className="invitation-generation-box">
             <h3 style={{ margin: '0 0 1.2rem 0', fontSize: '1.1rem' }}>🎟️ Generar Nueva Invitación Nominativa</h3>
             
-            <div className="invitation-form-row">
-              <input 
-                type="text" 
-                placeholder="Nombre del músico..." 
-                value={inviteName} 
-                onChange={(e) => setInviteName(e.target.value)} 
-                className="invite-input-name"
-              />
-              <select 
-                value={inviteSection} 
-                onChange={(e) => setInviteSection(e.target.value)} 
-                className="invite-input-section"
-              >
-                <option value="">-- Sección --</option>
-                {[...predefinedRoles]
-                  .filter(r => !r.includes("- Tutti")) // Ocultar Tutti en invitaciones
-                  .sort((a,b) => a.localeCompare(b))
-                  .map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <input 
-                type="email" 
-                placeholder="Email (opcional)" 
-                value={inviteEmail} 
-                onChange={(e) => setInviteEmail(e.target.value)} 
-                className="invite-input-email"
-              />
+            <div className="invitation-expanded-form">
+              <div className="invite-row-grid" style={{ marginBottom: '1rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Nombre de pila..." 
+                  value={inviteName} 
+                  onChange={(e) => setInviteName(e.target.value)} 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Apellidos..." 
+                  value={inviteSurname} 
+                  onChange={(e) => setInviteSurname(e.target.value)} 
+                />
+              </div>
+
+              <div className="invite-row-grid" style={{ marginBottom: '1.5rem' }}>
+                <input 
+                  type="email" 
+                  placeholder="Email (opcional)" 
+                  value={inviteEmail} 
+                  onChange={(e) => setInviteEmail(e.target.value)} 
+                />
+                <input 
+                  type="tel" 
+                  placeholder="Teléfono móvil (opcional)" 
+                  value={invitePhone} 
+                  onChange={(e) => setInvitePhone(e.target.value)} 
+                />
+              </div>
+
+              <div className="invitation-section">
+                <h4>Perfil Artístico 1 (Principal)</h4>
+                <div className="invite-row-grid">
+                  <select value={inviteAgrupacion} onChange={(e) => setInviteAgrupacion(e.target.value)}>
+                    <option value="">-- Agrupación 1 --</option>
+                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  <select value={inviteSection} onChange={(e) => setInviteSection(e.target.value)}>
+                    <option value="">-- Sección 1 --</option>
+                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="invitation-section">
+                <h4>Perfil Artístico 2 (Opcional)</h4>
+                <div className="invite-row-grid">
+                  <select value={inviteAgrupacion2} onChange={(e) => setInviteAgrupacion2(e.target.value)}>
+                    <option value="">-- Agrupación 2 --</option>
+                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  <select value={inviteSection2} onChange={(e) => setInviteSection2(e.target.value)}>
+                    <option value="">-- Sección 2 --</option>
+                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="invitation-section" style={{ borderBottom: 'none', marginBottom: '1.5rem' }}>
+                <h4>Perfil Artístico 3 (Opcional)</h4>
+                <div className="invite-row-grid">
+                  <select value={inviteAgrupacion3} onChange={(e) => setInviteAgrupacion3(e.target.value)}>
+                    <option value="">-- Agrupación 3 --</option>
+                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  <select value={inviteSection3} onChange={(e) => setInviteSection3(e.target.value)}>
+                    <option value="">-- Sección 3 --</option>
+                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+
               <button 
                 onClick={createInvitation} 
                 className={`btn-generate-invite ${inviteEmail ? 'send' : 'link'}`}
                 disabled={isGeneratingInvite}
               >
-                {isGeneratingInvite ? "..." : (inviteEmail ? "Enviar 📨" : "Link 🔗")}
+                {isGeneratingInvite ? (
+                  <span className="btn-loader"></span>
+                ) : (
+                  <>
+                    {inviteEmail ? "✨ Crear y Enviar Email" : "🔗 Crear y Generar Enlace"}
+                  </>
+                )}
               </button>
             </div>
             
@@ -864,7 +1019,7 @@ export default function AdminOCGCPartituras() {
                   <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #ffeeba', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1a1a1a' }}>
-                        {inv.forWhom || "Invitado sin nombre"} 
+                        {inv.nombre ? `${inv.nombre} ${inv.apellidos || ''}`.trim() : "Invitado sin nombre"} 
                         {inv.sentToEmail && <span style={{ fontSize: '0.8rem', marginLeft: '8px', fontWeight: 'normal', color: 'var(--clr-success)' }}>(Enviada a: {inv.sentToEmail})</span>}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -1004,11 +1159,58 @@ export default function AdminOCGCPartituras() {
                   </div>
 
                   <div className="modal-permissions-summary" style={{ marginTop: '2rem', padding: '1.2rem', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #eee' }}>
-                    <p style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Resumen de acceso:</p>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                       <span style={{ fontSize: '0.8rem' }}><strong>Master:</strong> {editingMemberData.isMaster ? 'Sí' : 'No'}</span>
-                       <span style={{ fontSize: '0.8rem' }}><strong>Archivero:</strong> {editingMemberData.isArchiver ? 'Sí' : 'No'}</span>
-                       <span style={{ fontSize: '0.8rem' }}><strong>Estado:</strong> {editingMemberData.isBanned ? 'Baneado' : 'Activo'}</span>
+                    <p style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Gestión de Accesos:</p>
+                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        <button
+                          onClick={() => {
+                             toggleMasterStatus(editingMemberData.id, editingMemberData.isMaster);
+                             setEditingMemberData({...editingMemberData, isMaster: !editingMemberData.isMaster});
+                          }}
+                          className={`btn-status ${editingMemberData.isMaster ? 'active' : ''}`}
+                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                        >
+                          {editingMemberData.isMaster ? "✓" : "🚫"}
+                        </button>
+                        <div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Master</span>
+                          <span style={{ fontSize: '0.75rem', color: '#666' }}>Acceso total</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        <button
+                          onClick={() => {
+                            toggleArchiverStatus(editingMemberData.id, editingMemberData.isArchiver);
+                            setEditingMemberData({...editingMemberData, isArchiver: !editingMemberData.isArchiver});
+                          }}
+                          className={`btn-status ${editingMemberData.isArchiver ? 'active' : ''}`}
+                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                        >
+                          {editingMemberData.isArchiver ? "✓" : "🚫"}
+                        </button>
+                        <div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Archivero</span>
+                          <span style={{ fontSize: '0.75rem', color: '#666' }}>Gestión doc.</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        <button
+                          onClick={() => {
+                            toggleBanStatus(editingMemberData.id, editingMemberData.isBanned);
+                            setEditingMemberData({...editingMemberData, isBanned: !editingMemberData.isBanned});
+                          }}
+                          className={`btn-status ${editingMemberData.isBanned ? 'banned' : 'active'}`}
+                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                        >
+                          {editingMemberData.isBanned ? "🚫" : "✓"}
+                        </button>
+                        <div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Estado</span>
+                          <span style={{ fontSize: '0.75rem', color: '#666' }}>{editingMemberData.isBanned ? 'Baneado' : 'Activo'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1119,44 +1321,95 @@ export default function AdminOCGCPartituras() {
           border: 1px solid #dee2e6;
           margin-bottom: 2rem;
         }
-        .invitation-form-row {
+        .invitation-form-row, .invitation-expanded-form {
           display: flex;
+          flex-direction: column;
           gap: 0.8rem;
-          align-items: center;
         }
-        .invitation-form-row input, .invitation-form-row select {
-          padding: 0.8rem;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          font-size: 0.9rem;
+        .invitation-generation-box input, .invitation-generation-box select {
+          padding: 0.9rem 1.2rem;
+          border: 1px solid #e1e8ed;
+          border-radius: 12px;
+          font-size: 0.95rem;
+          background: #fbfcfe;
+          transition: all 0.2s;
+          width: 100%;
+          box-sizing: border-box;
+          color: #2c3e50;
+        }
+        .invitation-generation-box input::placeholder {
+          color: #95a5a6;
+          opacity: 0.8;
+        }
+        .invitation-generation-box input:focus, .invitation-generation-box select:focus {
+          border-color: #478AC9;
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(71, 138, 201, 0.1);
           background: #fff;
         }
-        .invite-input-name { flex: 2; min-width: 150px; }
-        .invite-input-section { flex: 1.5; min-width: 120px; }
-        .invite-input-email { flex: 2; min-width: 150px; }
+        .invitation-generation-box h4 {
+          margin: 0 0 0.5rem 0;
+          font-size: 0.85rem;
+          color: #7f8c8d;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .invite-row-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+        .invitation-section {
+          border-top: 1px solid #f0f0f0;
+          padding-top: 1.2rem;
+          margin-bottom: 1.2rem;
+        }
         
         .btn-generate-invite {
-          padding: 0.8rem 1.5rem;
+          padding: 1.2rem;
           border: none;
-          border-radius: 8px;
-          font-weight: bold;
+          border-radius: 14px;
+          font-weight: 800;
           cursor: pointer;
-          white-space: nowrap;
-          transition: 0.2s;
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           color: white;
-          min-width: 120px;
+          width: 100%;
+          font-size: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.8rem;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          text-transform: uppercase;
+          letter-spacing: 1px;
         }
-        .btn-generate-invite.link { background: var(--clr-navy); }
-        .btn-generate-invite.send { background: #2ecc71; }
-        .btn-generate-invite:hover { transform: translateY(-1px); filter: brightness(1.1); }
-        .btn-generate-invite:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-generate-invite.link { background: linear-gradient(135deg, var(--clr-navy) 0%, #2c3e50 100%); }
+        .btn-generate-invite.send { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); }
+        .btn-generate-invite:hover { 
+          transform: translateY(-3px); 
+          box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        .btn-generate-invite:active { transform: translateY(-1px); }
+        .btn-generate-invite:disabled { opacity: 0.6; cursor: wait; transform: none; }
+
+        .btn-loader {
+          width: 20px;
+          height: 20px;
+          border: 3px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top-color: #fff;
+          animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .generated-link-alert {
           margin-top: 1.5rem;
           padding: 1.2rem;
           background: #e7f5ff;
           border: 1px dashed #478AC9;
-          borderRadius: 10px;
+          border-radius: 12px;
           animation: pulse 2s infinite;
         }
 

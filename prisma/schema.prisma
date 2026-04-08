@@ -134,10 +134,18 @@ model Papel {
 model InvitationCode {
   id               Int       @id @default(autoincrement())
   code             String    @unique
-  forWhom          String?   // Nombre - Sección del invitado
+  nombre           String?
   sentToEmail      String?   // Email al que se envió (Invitaciones Mejoradas)
   expiresAt        DateTime
   usedAt           DateTime?
+  agrupacion       String?
+  seccion          String?
+  agrupacion2      String?
+  seccion2         String?
+  agrupacion3      String?
+  seccion3         String?
+  apellidos        String?
+  telefono         String?
   registeredUserId Int?      // ID del usuario que aceptó (Tracking)
   createdAt        DateTime  @default(now())
 }

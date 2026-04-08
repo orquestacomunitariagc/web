@@ -25,7 +25,19 @@ export async function POST(req: Request) {
       return new NextResponse(JSON.stringify({ error: "Este código ha caducado (7 días transcurridos)" }), { status: 410 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      nombre: invitation.nombre || '',
+      email: invitation.sentToEmail,
+      apellidos: invitation.apellidos,
+      telefono: invitation.telefono,
+      agrupacion: invitation.agrupacion,
+      seccion: invitation.seccion,
+      agrupacion2: invitation.agrupacion2,
+      seccion2: invitation.seccion2,
+      agrupacion3: invitation.agrupacion3,
+      seccion3: invitation.seccion3
+    });
   } catch (error) {
     console.error("Error validando código:", error);
     return new NextResponse(JSON.stringify({ error: "Error interno del servidor" }), { status: 500 });
