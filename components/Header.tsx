@@ -23,7 +23,7 @@ export default function Header() {
       </div>
 
       {/* Desktop Nav */}
-      <nav aria-label="Navegación principal">
+      <nav aria-label="Navegación principal" className="hide-mobile">
         <ul className="nav-links">
           <li><Link href="/">Inicio</Link></li>
           <li><Link href="/nosotros">Nosotros</Link></li>
@@ -57,7 +57,7 @@ export default function Header() {
 
       {/* Mobile hamburger */}
       <button
-        className="mobile-menu-btn"
+        className="mobile-menu-btn show-mobile-only"
         onClick={() => setMobileOpen(!mobileOpen)}
         aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
         aria-expanded={mobileOpen}
@@ -88,15 +88,31 @@ export default function Header() {
               {label}
             </Link>
           ))}
-          <a
-            href="https://www.paypal.com/donate/?hosted_button_id=WQGTER7DPGGB6"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-donate"
-            style={{ marginTop: '2rem', fontSize: '1rem', padding: '1rem 2.5rem' }}
-          >
-            Donar
-          </a>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', marginTop: '1.5rem', alignItems: 'center' }}>
+            <a
+              href="https://www.paypal.com/donate/?hosted_button_id=WQGTER7DPGGB6"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-donate"
+              style={{ fontSize: '1rem', padding: '1rem 2.5rem', textAlign: 'center' }}
+            >
+              Donar
+            </a>
+            
+            <a
+              href="https://auditorioalfredokraus.janto.es/janto/main.php?Nivel=Evento&idEvento=OCGC0326"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-tickets"
+              style={{ padding: '1rem 2rem', justifyContent: 'center' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
+              </svg>
+              Entradas
+            </a>
+          </div>
         </nav>
       </div>
     </header>
