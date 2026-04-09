@@ -21,17 +21,30 @@ export async function GET() {
     // Contamos usuarios Clerk baneados localmente
     const totalBanned = clerkUsers.filter(u => u.publicMetadata?.isBanned).length;
 
-    // Contar usuarios por agrupación
+    // Contar usuarios por agrupación y desglosar por sección
     const agrupaciones = await prisma.agrupacion.findMany({
       include: {
-        estructuras: true
+        estructuras: {
+          include: {
+            seccion: true
+          }
+        }
       }
     });
 
-    const statsArray = agrupaciones.map(a => ({
-      name: a.agrupacion,
-      count: a.estructuras.length
-    }));
+    const statsArray = agrupaciones.map(a => {
+      const sectionCounts: Record<string, number> = {};
+      a.estructuras.forEach(e => {
+        const secName = e.seccion?.seccion || "Otro";
+        sectionCounts[secName] = (sectionCounts[secName] || 0) + 1;
+      });
+
+      return {
+        name: a.agrupacion,
+        count: a.estructuras.length,
+        sections: Object.entries(sectionCounts).map(([name, count]) => ({ name, count }))
+      };
+    });
 
     return NextResponse.json({
       totalUsers,

@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   const file = formData.get("file") as File;
   const categoryId = formData.get("categoryId") as string;
   const rolesRaw = formData.getAll("roles");
+  const agrupacionesRaw = formData.getAll("agrupaciones");
 
   const isDocument = formData.get("isDocument") === "true" || formData.get("isDocument") === "on";
 
@@ -33,10 +34,10 @@ export async function POST(req: Request) {
 
   // Validaciones
   if (!categoryId && !isDocument) {
-    return new NextResponse("Debes seleccionar un Repertorio o marcarlo como Documento.", { status: 400 });
+    return new NextResponse("Debes seleccionar un Programa o marcarlo como Documento.", { status: 400 });
   }
-  if (rolesRaw.length === 0 && !isDocument) {
-    return new NextResponse("Debes seleccionar al menos un instrumento o marcarlo como Documento (Público).", { status: 400 });
+  if (!isDocument && (rolesRaw.length === 0 || agrupacionesRaw.length === 0)) {
+    return new NextResponse("Debes seleccionar al menos una Agrupación y un Instrumento, o marcarlo como Documento (Público).", { status: 400 });
   }
 
   // 1. Subir a Vercel Blob
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
         fileUrl,
         isDocument,
         categoryId: categoryId ? parseInt(categoryId) : null,
+        allowedAgrupaciones: agrupacionesRaw.map(a => String(a)),
         allowedRoles: rolesRaw.map(r => String(r))
       },
       include: { category: true }

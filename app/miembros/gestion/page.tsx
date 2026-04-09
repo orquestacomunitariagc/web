@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from "@clerk/nextjs";
-import DashboardPanel from '@/components/admin/DashboardPanel';
 import CalendarPanel from '@/components/admin/CalendarPanel';
 import LogsPanel from '@/components/admin/LogsPanel';
 import CSVImportScores from '@/components/admin/CSVImportScores';
 import CSVImportUsers from '@/components/admin/CSVImportUsers';
 import AdminGuideModal from '@/components/admin/AdminGuideModal';
+import DashboardPanel from '@/components/admin/DashboardPanel';
 
-type TabType = 'scores' | 'categories' | 'roles' | 'sections' | 'personal' | 'dashboard' | 'calendar' | 'logs' | 'requests';
+type TabType = 'dashboard' | 'scores' | 'categories' | 'roles' | 'sections' | 'personal' | 'calendar' | 'logs' | 'requests';
 const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
 
 export default function AdminOCGCPartituras() {
@@ -23,7 +23,8 @@ export default function AdminOCGCPartituras() {
   const [papeles, setPapeles] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType | null>(null);
+  const [selectedAgrupaciones, setSelectedAgrupaciones] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType | null>('dashboard');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -310,6 +311,10 @@ export default function AdminOCGCPartituras() {
     setSelectedTags(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
 
+  const toggleAgrupacion = (a: string) => {
+    setSelectedAgrupaciones(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
+  };
+
   const deleteScore = async (id: number) => {
     if (!confirm("¿Eliminar esta partitura?")) return;
     try {
@@ -359,6 +364,7 @@ export default function AdminOCGCPartituras() {
           title: editingScore.title,
           categoryId: editingScore.categoryId || null,
           allowedRoles: editingScore.allowedRoles || [],
+          allowedAgrupaciones: editingScore.allowedAgrupaciones || [],
           isDocument: editingScore.isDocument || false 
         })
       });
@@ -691,7 +697,10 @@ export default function AdminOCGCPartituras() {
     const matchSearch = s.title.toLowerCase().includes(searchScore.toLowerCase());
     const matchType = filterScoreType === 'all' || (filterScoreType === 'document' ? s.isDocument : !s.isDocument);
     const matchCategory = filterScoreCategory === 'all' || s.categoryId?.toString() === filterScoreCategory;
+    
+    // Check if score is for the filtered instrument/role
     const matchInstrument = filterScoreInstrument === 'all' || s.isDocument || s.allowedRoles?.includes(filterScoreInstrument);
+    
     return matchSearch && matchType && matchCategory && matchInstrument;
   });
 
@@ -729,7 +738,7 @@ export default function AdminOCGCPartituras() {
         </div>
 
         <nav className="admin-nav-pills">
-          {isMaster && <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>Dashboard</button>}
+          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>Dashboard</button>
           <button onClick={() => setActiveTab('scores')} className={activeTab === 'scores' ? 'active' : ''}>Partituras</button>
           <button onClick={() => setActiveTab('categories')} className={activeTab === 'categories' ? 'active' : ''}>Programas</button>
           <button onClick={() => setActiveTab('roles')} className={activeTab === 'roles' ? 'active' : ''}>Etiquetas</button>
@@ -758,6 +767,10 @@ export default function AdminOCGCPartituras() {
 
       {isHelpOpen && <AdminGuideModal activeTab={activeTab!} onClose={() => setIsHelpOpen(false)} />}
 
+      {activeTab === 'dashboard' && (
+        <DashboardPanel members={members} scores={scores} />
+      )}
+
       {activeTab === 'scores' && (
         <>
           <CSVImportScores categories={categories} onImportSuccess={() => loadData(true)} />
@@ -772,9 +785,9 @@ export default function AdminOCGCPartituras() {
                 alert("Debes seleccionar un Programa para la partitura o marcarla como Documento.");
               }
               const isDocCheck = (e.currentTarget.elements.namedItem("isDocument") as HTMLInputElement).checked || uploadIsDoc;
-              if (!isDocCheck && selectedTags.length === 0) {
+              if (!isDocCheck && (selectedTags.length === 0 || selectedAgrupaciones.length === 0)) {
                  e.preventDefault();
-                 alert("Debes seleccionar al menos un instrumento o marcar la opción Documento para que todos puedan verlo.");
+                 alert("Debes seleccionar al menos una Agrupación y un Instrumento, o marcar la opción Documento para que todos puedan verlo.");
               }
             }}>
               <input type="text" name="title" placeholder="Título (ej: Sinfonía 9)" required value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} />
@@ -784,13 +797,35 @@ export default function AdminOCGCPartituras() {
               </select>
               <input type="file" name="file" accept=".pdf" required />
               
-              <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
-                <p style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#444', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Seleccionar Destinatarios:</p>
-                {Object.keys(tagsDict).length > 0 ? (
-                  Object.entries(tagsDict).map(([familia, instrumentos]) => (
-                    instrumentos.length > 0 && (
-                      <div key={familia} style={{ marginBottom: '1.2rem' }}>
-                        <h4 style={{ fontSize: '0.75rem', color: '#478AC9', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.6rem', borderLeft: '3px solid #478AC9', paddingLeft: '0.6rem' }}>{familia}</h4>
+              <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                {/* Panel Agrupaciones */}
+                <div>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#444', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>1. Seleccionar Agrupaciones:</p>
+                  <div className="instrument-chips-grid">
+                    {agrupaciones.map((a: any) => (
+                      <label key={a.id} className={`instrument-chip ${selectedAgrupaciones.includes(a.agrupacion) ? 'selected' : ''}`}>
+                        <input 
+                          type="checkbox" 
+                          name="agrupaciones" 
+                          value={a.agrupacion} 
+                          checked={selectedAgrupaciones.includes(a.agrupacion)} 
+                          onChange={() => toggleAgrupacion(a.agrupacion)} 
+                          style={{ display: 'none' }} 
+                        />
+                        {a.agrupacion}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Panel Secciones/Instrumentos */}
+                <div>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#444', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>2. Seleccionar Secciones/Instrumentos:</p>
+                  {Object.keys(tagsDict).length > 0 ? (
+                    Object.entries(tagsDict).map(([familia, instrumentos]) => (
+                      instrumentos.length > 0 && (
+                        <div key={familia} style={{ marginBottom: '1.2rem' }}>
+                          <h4 style={{ fontSize: '0.75rem', color: '#478AC9', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.6rem', borderLeft: '3px solid #478AC9', paddingLeft: '0.6rem' }}>{familia}</h4>
                         <div className="instrument-chips-grid">
                           {instrumentos.map((r: any) => (
                             <label key={r.name} className={`instrument-chip ${selectedTags.includes(r.name) ? 'selected' : ''}`}>
@@ -811,7 +846,8 @@ export default function AdminOCGCPartituras() {
                   ))
                 ) : (
                   <p style={{ fontSize: '0.85rem', color: '#999' }}>Cargando etiquetas de instrumentos...</p>
-                )}
+                  )}
+                </div>
               </div>
 
               <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0 0 1rem', fontSize: '0.9rem', color: '#555', cursor: 'pointer' }}>
@@ -855,7 +891,12 @@ export default function AdminOCGCPartituras() {
                   <tr key={s.id}>
                     <td className="score-title">{s.title}</td>
                     <td className="score-roles">
-                      {s.isDocument ? <span style={{color: '#e67e22', fontWeight: 600}}>DOCUMENTO</span> : (s.allowedRoles?.join(", ") || "Todos")}
+                      {s.isDocument ? <span style={{color: '#e67e22', fontWeight: 600}}>DOCUMENTO</span> : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#666' }}>[ {s.allowedAgrupaciones?.join(", ") || "No asig."} ]</span>
+                          <span>{s.allowedRoles?.join(", ") || "Todos"}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="action-buttons">
                       <button onClick={() => setEditingScore(s)} className="btn-edit">Editar</button>
@@ -1229,7 +1270,7 @@ export default function AdminOCGCPartituras() {
             </div>
             
             <div className="invitation-expanded-form">
-              <div className="invite-row-grid" style={{ marginBottom: '1rem' }}>
+              <div className="invite-row-grid-2col" style={{ marginBottom: '1.5rem' }}>  
                 <input 
                   type="text" 
                   placeholder="Nombre de pila..." 
@@ -1244,7 +1285,7 @@ export default function AdminOCGCPartituras() {
                 />
               </div>
 
-              <div className="invite-row-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="invite-row-grid-2col" style={{ marginBottom: '1.5rem' }}>
                 <input 
                   type="email" 
                   placeholder="Email (opcional)" 
@@ -1261,7 +1302,7 @@ export default function AdminOCGCPartituras() {
 
               <div className="invitation-section">
                 <h4>Perfil Artístico 1 (Principal)</h4>
-                <div className="invite-row-grid">
+                <div className="invite-row-grid-2col">
                   <select value={inviteAgrupacion} onChange={(e) => setInviteAgrupacion(e.target.value)}>
                     <option value="">-- Agrupación 1 --</option>
                     {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
@@ -1275,7 +1316,7 @@ export default function AdminOCGCPartituras() {
 
               <div className="invitation-section">
                 <h4>Perfil Artístico 2 (Opcional)</h4>
-                <div className="invite-row-grid">
+                <div className="invite-row-grid-2col">
                   <select value={inviteAgrupacion2} onChange={(e) => setInviteAgrupacion2(e.target.value)}>
                     <option value="">-- Agrupación 2 --</option>
                     {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
@@ -1289,7 +1330,7 @@ export default function AdminOCGCPartituras() {
 
               <div className="invitation-section" style={{ borderBottom: 'none', marginBottom: '1.5rem' }}>
                 <h4>Perfil Artístico 3 (Opcional)</h4>
-                <div className="invite-row-grid">
+                <div className="invite-row-grid-2col">
                   <select value={inviteAgrupacion3} onChange={(e) => setInviteAgrupacion3(e.target.value)}>
                     <option value="">-- Agrupación 3 --</option>
                     {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
@@ -1851,7 +1892,6 @@ export default function AdminOCGCPartituras() {
         </section>
       )}
 
-      {activeTab === 'dashboard' && isMaster && <DashboardPanel members={members} scores={scores} />}
       {activeTab === 'calendar' && <CalendarPanel />}
       {activeTab === 'logs' && isMaster && <LogsPanel />}
 
@@ -2002,6 +2042,11 @@ export default function AdminOCGCPartituras() {
           grid-template-columns: 1fr 1fr 1fr auto;
           gap: 1rem;
           align-items: end;
+        }
+        .invite-row-grid-2col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
         }
         .invitation-section {
           border-top: 1px solid #f0f0f0;

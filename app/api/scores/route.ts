@@ -25,30 +25,38 @@ export async function GET() {
       return NextResponse.json(allScores);
     }
 
-    // 3. Lógica de Dirección Musical:
-    // Si un rol empieza por "Dirección musical", le damos acceso a TODO el material de esa agrupación (Tutti)
-    const ensembleMappings: Record<string, string> = {
-      "Dirección musical (Ensemble Flautas)": "Ensemble Flautas - Tutti",
-      "Dirección musical (Ensemble Metales)": "Ensemble Metales - Tutti",
-      "Dirección musical (Ensemble Violonchelos)": "Ensemble Chelos - Tutti",
-      "Dirección musical (Coro)": "Coro - Tutti",
-      "Dirección artística y musical (OCGC y Orquesta)": "Orquesta - Tutti"
-    };
+    // Obtenemos los roles y agrupaciones reales desde la DB para mayor precision
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      include: {
+        estructuras: {
+          include: { seccion: true, agrupacion: true }
+        }
+      }
+    });
 
-    const extraTuttiRoles = userRoles
-      .filter(r => r.startsWith("Dirección"))
-      .map(r => ensembleMappings[r])
-      .filter(Boolean);
+    const dbRoles = dbUser?.estructuras.map(e => e.seccion.seccion) || [];
+    const dbAgrupaciones = dbUser?.estructuras.map(e => e.agrupacion.agrupacion) || [];
 
-    const effectiveRoles = [...new Set([...userRoles, ...extraTuttiRoles])];
+    const effectiveRoles = [...new Set([...userRoles, ...dbRoles])];
+    const effectiveAgrupaciones = [...new Set([...dbAgrupaciones])];
 
-    // Si eres Músico, solo ves las partituras que tengan TUS roles
-    // O las que no tengan ningún rol asignado (Públicas para todos los miembros)
+    // Para directores o roles especiales, damos acceso a todos los de esa agrupación
+    const isDirectorOrquesta = effectiveRoles.some(r => r.includes("Orquesta") && r.toLowerCase().includes("direcci"));
+    if (isDirectorOrquesta && !effectiveAgrupaciones.includes("Orquesta")) effectiveAgrupaciones.push("Orquesta");
+    // (A futuro se pueden mapear mas directores)
+
     const filteredScores = await prisma.score.findMany({
       where: {
         OR: [
-          { allowedRoles: { hasSome: effectiveRoles } },
-          { allowedRoles: { isEmpty: true } }
+          { isDocument: true },
+          { allowedRoles: { isEmpty: true }, allowedAgrupaciones: { isEmpty: true } },
+          {
+             AND: [
+               { allowedRoles: { hasSome: effectiveRoles } },
+               { allowedAgrupaciones: { hasSome: effectiveAgrupaciones } }
+             ]
+          }
         ]
       },
       include: { category: true },

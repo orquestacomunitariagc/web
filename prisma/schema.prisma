@@ -19,7 +19,8 @@ model Score {
   isDocument   Boolean   @default(false)
   categoryId   Int?
   category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  // Ahora es una lista preestablecida de cadenas
+  allowedAgrupaciones String[] @default([])
+  // Ahora es una lista preestablecida de cadenas (Secciones)
   allowedRoles String[]  @default([])
 }
 

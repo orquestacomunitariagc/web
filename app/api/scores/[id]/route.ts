@@ -49,7 +49,7 @@ export async function PATCH(
   if (!isArchiver) return new NextResponse("Forbidden", { status: 403 });
 
   const body = await req.json();
-  const { title, categoryId, allowedRoles, isDocument } = body;
+  const { title, categoryId, allowedRoles, allowedAgrupaciones, isDocument } = body;
   
   const resolvedParams = await params;
   const scoreId = parseInt(resolvedParams.id);
@@ -60,6 +60,7 @@ export async function PATCH(
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (isDocument !== undefined) updateData.isDocument = isDocument;
     if (allowedRoles !== undefined) updateData.allowedRoles = allowedRoles;
+    if (allowedAgrupaciones !== undefined) updateData.allowedAgrupaciones = allowedAgrupaciones;
 
     const updated = await prisma.score.update({
       where: { id: scoreId },
