@@ -36,43 +36,33 @@ async function main() {
   }
   console.log(`  ✓ ${papeles.length} papeles`);
 
-  // ── Secciones (Instrumentos) con Familia ──
-  const instrumentosDict = {
-    "Cuerda": ["Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo", "Arpa", "Piano", "Órgano"],
-    "Viento Madera": ["Flauta", "Oboe", "Clarinete", "Fagot", "Requinto", "Contrafagot", "Saxofón"],
-    "Viento Metal": ["Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino"],
-    "Percusión": ["Percusión"],
-    "Coro": ["Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)", "Coach vocal"],
-    "Tuttis": ["Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti"],
-    "Dirección": [
-      "Dirección artística y musical (OCGC y Orquesta)", 
-      "Dirección musical (Ensemble Flautas)", 
-      "Dirección musical (Ensemble Metales)", 
-      "Dirección musical (Ensemble Violonchelos)", 
-      "Dirección musical (Coro)"
-    ],
-    "Generales": [
-      "General Orquesta",
-      "General Coro",
-      "General Ensemble Flautas",
-      "General Ensemble Metales",
-      "General Ensemble Chelos",
-      "General Big Band"
-    ]
-  };
+  // ── Secciones (Instrumentos) ──
+  const instrumentos = [
+    "Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo", "Arpa", "Piano", "Órgano",
+    "Flauta", "Oboe", "Clarinete", "Fagot", "Requinto", "Contrafagot", "Saxofón",
+    "Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino",
+    "Percusión",
+    "Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)", "Coach vocal",
+    "Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti",
+    "Dirección artística y musical (OCGC y Orquesta)",
+    "Dirección musical (Ensemble Flautas)",
+    "Dirección musical (Ensemble Metales)",
+    "Dirección musical (Ensemble Violonchelos)",
+    "Dirección musical (Coro)",
+    "General Orquesta", "General Coro", "General Ensemble Flautas",
+    "General Ensemble Metales", "General Ensemble Chelos", "General Big Band"
+  ];
 
   let seccionCount = 0;
-  for (const [familia, instrumentos] of Object.entries(instrumentosDict)) {
-    for (const nombre of instrumentos) {
-      await prisma.seccion.upsert({
-        where: { seccion: nombre },
-        update: { familia: familia },
-        create: { seccion: nombre, familia: familia }
-      });
-      seccionCount++;
-    }
+  for (const nombre of instrumentos) {
+    await prisma.seccion.upsert({
+      where: { seccion: nombre },
+      update: {},
+      create: { seccion: nombre }
+    });
+    seccionCount++;
   }
-  console.log(`  ✓ ${seccionCount} secciones sincronizadas con familias`);
+  console.log(`  ✓ ${seccionCount} secciones`);
 
   console.log("✅ Seed completado");
 }
