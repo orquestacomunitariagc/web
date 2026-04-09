@@ -134,7 +134,8 @@ model Papel {
 model InvitationCode {
   id               Int       @id @default(autoincrement())
   code             String    @unique
-  nombre           String?
+  name             String?
+  surname          String?
   sentToEmail      String?   // Email al que se envió (Invitaciones Mejoradas)
   expiresAt        DateTime
   usedAt           DateTime?
@@ -144,8 +145,7 @@ model InvitationCode {
   seccion2         String?
   agrupacion3      String?
   seccion3         String?
-  apellidos        String?
-  telefono         String?
+  phone            String?
   registeredUserId Int?      // ID del usuario que aceptó (Tracking)
   createdAt        DateTime  @default(now())
 }
@@ -182,6 +182,7 @@ model ActivityLog {
 model JoinRequest {
   id          Int      @id @default(autoincrement())
   name        String
+  surname     String?
   email       String
   phone       String
   group       String   // Agrupación (Orquesta, Coro, etc.)

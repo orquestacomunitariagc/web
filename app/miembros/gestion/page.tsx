@@ -339,7 +339,7 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const createInvitation = async () => {
+  const createInvitation = async (sendEmail: boolean = false) => {
     if (!inviteName || !inviteSection) {
       alert("Por favor, pon el nombre y la sección del invitado.");
       return;
@@ -351,16 +351,17 @@ export default function AdminOCGCPartituras() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          nombre: inviteName || null,
+          name: inviteName || null,
           email: inviteEmail || null,
-          telefono: invitePhone || null,
-          apellidos: inviteSurname || null,
+          phone: invitePhone || null,
+          surname: inviteSurname || null,
           agrupacion: inviteAgrupacion || null,
           seccion: inviteSection || null,
           agrupacion2: inviteAgrupacion2 || null,
           seccion2: inviteSection2 || null,
           agrupacion3: inviteAgrupacion3 || null,
-          seccion3: inviteSection3 || null
+          seccion3: inviteSection3 || null,
+          sendEmail
         })
       });
       if (res.ok) {
@@ -368,7 +369,7 @@ export default function AdminOCGCPartituras() {
         setInvitations(prev => [newInvite, ...prev]);
         const fullUrl = `${window.location.origin}/registro-usuarios?code=${newInvite.code}`;
         
-        if (inviteEmail) {
+        if (sendEmail && inviteEmail) {
           alert(`¡Invitación enviada por correo a ${inviteEmail}!`);
         } else {
           setLastGeneratedLink(fullUrl);
@@ -376,7 +377,6 @@ export default function AdminOCGCPartituras() {
           navigator.clipboard.writeText(fullUrl);
           alert("✓ Enlace generado y copiado al portapapeles.");
         }
-
         setInviteName('');
         setInviteSurname('');
         setInviteSection('');
@@ -388,6 +388,7 @@ export default function AdminOCGCPartituras() {
         setInviteEmail('');
         setInvitePhone('');
       }
+
     } catch (error) {
       console.error("Error creating invitation:", error);
     } finally {
@@ -405,7 +406,7 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const updateJoinRequestStatus = async (id: number, status: string, name?: string, email?: string) => {
+  const updateJoinRequestStatus = async (id: number, status: string, name?: string, surname?: string, email?: string) => {
     try {
       const res = await fetch("/api/admin/join-requests", {
         method: "PATCH",
@@ -416,17 +417,20 @@ export default function AdminOCGCPartituras() {
         setJoinRequests(prev => prev.map(jr => jr.id === id ? { ...jr, status } : jr));
         if (status === 'Aceptada' && name) {
           setInviteName(name);
+          setInviteSurname(surname || '');
           setInviteEmail(email || '');
-          // Buscamos la solicitud original para sacar el instrumento si no lo tenemos
+          // Buscamos la solicitud original para sacar los datos artísticos
           const req = joinRequests.find(jr => jr.id === id);
           if (req) {
-            setInviteSection(`${req.group}${req.instrument ? ` - ${req.instrument}` : ''}`);
+            setInvitePhone(req.phone || '');
+            setInviteAgrupacion(req.group || '');
+            setInviteSection(req.instrument || '');
           }
           setActiveTab('personal');
           setTimeout(() => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }, 100);
-          alert(`Solicitud de ${name} aceptada. Se han precargado los datos. Pulsa "Generar Enlace" para terminar.`);
+          alert(`Solicitud de ${name} ${surname || ""} aceptada. Se han precargado sus datos. Pulsa el botón correpondiente abajo para finalizar.`);
         }
       }
     } catch (err) { console.error("Error updating status:", err); }
@@ -959,19 +963,31 @@ export default function AdminOCGCPartituras() {
                 </div>
               </div>
 
-              <button 
-                onClick={createInvitation} 
-                className={`btn-generate-invite ${inviteEmail ? 'send' : 'link'}`}
-                disabled={isGeneratingInvite}
-              >
-                {isGeneratingInvite ? (
-                  <span className="btn-loader"></span>
-                ) : (
-                  <>
-                    {inviteEmail ? "✨ Crear y Enviar Email" : "🔗 Crear y Generar Enlace"}
-                  </>
-                )}
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <button 
+                  onClick={() => createInvitation(true)} 
+                  className="btn-generate-invite send"
+                  disabled={isGeneratingInvite || !inviteEmail}
+                  title={!inviteEmail ? "Introduce un email para enviar la invitación" : ""}
+                >
+                  {isGeneratingInvite ? (
+                    <span className="btn-loader"></span>
+                  ) : (
+                    <>✨ Enviar por Email</>
+                  )}
+                </button>
+                <button 
+                  onClick={() => createInvitation(false)} 
+                  className="btn-generate-invite link"
+                  disabled={isGeneratingInvite}
+                >
+                  {isGeneratingInvite ? (
+                    <span className="btn-loader"></span>
+                  ) : (
+                    <>🔗 Sólo Generar Link</>
+                  )}
+                </button>
+              </div>
             </div>
             
             {lastGeneratedLink && (
@@ -1019,7 +1035,7 @@ export default function AdminOCGCPartituras() {
                   <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #ffeeba', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1a1a1a' }}>
-                        {inv.nombre ? `${inv.nombre} ${inv.apellidos || ''}`.trim() : "Invitado sin nombre"} 
+                        {inv.name ? `${inv.name} ${inv.surname || ''}`.trim() : "Invitado sin nombre"} 
                         {inv.sentToEmail && <span style={{ fontSize: '0.8rem', marginLeft: '8px', fontWeight: 'normal', color: 'var(--clr-success)' }}>(Enviada a: {inv.sentToEmail})</span>}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -1591,7 +1607,7 @@ export default function AdminOCGCPartituras() {
                   <div key={r.id} className="request-card-responsive">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--clr-navy)' }}>{r.name}</span>
+                      <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--clr-navy)' }}>{r.name} {r.surname}</span>
                       <span style={{ 
                         fontSize: '0.7rem', 
                         textTransform: 'uppercase', 
@@ -1626,14 +1642,14 @@ export default function AdminOCGCPartituras() {
                     {(r.status === 'Pendiente' || r.status === 'Evaluando') && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <button 
-                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.email)}
+                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.surname, r.email)}
                           className="btn-main-admin"
                           style={{ fontSize: '0.75rem', background: 'var(--clr-success)', border: 'none', padding: '0.6rem' }}
                         >
                           Aceptar y Enviar Email ✅
                         </button>
                         <button 
-                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name)}
+                          onClick={() => updateJoinRequestStatus(r.id, 'Aceptada', r.name, r.surname)}
                           className="btn-main-admin"
                           style={{ fontSize: '0.75rem', background: 'var(--clr-navy)', border: 'none', padding: '0.6rem' }}
                         >

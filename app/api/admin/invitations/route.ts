@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const { nombre, email, apellidos, telefono, agrupacion, seccion, agrupacion2, seccion2, agrupacion3, seccion3 } = await req.json();
+    const { name, email, surname, phone, agrupacion, seccion, agrupacion2, seccion2, agrupacion3, seccion3, sendEmail } = await req.json();
 
     const code = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date();
@@ -40,11 +40,11 @@ export async function POST(req: Request) {
     const invitation = await prisma.invitationCode.create({
       data: {
         code,
-        nombre,
+        name,
+        surname,
+        phone,
         sentToEmail: email || null,
         expiresAt,
-        apellidos: apellidos || null,
-        telefono: telefono || null,
         agrupacion: agrupacion || null,
         seccion: seccion || null,
         agrupacion2: agrupacion2 || null,
@@ -54,18 +54,20 @@ export async function POST(req: Request) {
       }
     });
 
-    if (email && nombre) {
+    const actuallySent = email && name && sendEmail;
+
+    if (actuallySent) {
       const { sendInvitationEmail } = await import("@/lib/email");
       try {
-        await sendInvitationEmail(email, nombre, code);
+        await sendInvitationEmail(email, name, code);
       } catch (err) {
         console.error("Error enviando email invitacion:", err);
       }
     }
 
     await logActivity("Invitación Generada", clerkId, { 
-      destinatario: nombre, 
-      emailSent: !!email,
+      destinatario: `${name} ${surname || ""}`.trim(), 
+      emailSent: actuallySent,
       codigo: code 
     });
 
@@ -98,7 +100,7 @@ export async function DELETE(req: Request) {
 
     await logActivity("Invitación Revocada", clerkId, { 
       id, 
-      destinatario: invitation?.nombre || "Desconocido" 
+      destinatario: `${invitation?.name || ""} ${invitation?.surname || ""}`.trim() || "Desconocido" 
     });
 
     return NextResponse.json({ success: true });

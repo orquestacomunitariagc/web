@@ -42,9 +42,11 @@ export async function POST(req: Request) {
     }
 
     // 1. Guardamos en la base de datos
+    // Nota: El formulario envía 'first_name' y 'last_name' en el body
     const request = await (prisma as any).joinRequest.create({
       data: {
-        name,
+        name: body.first_name || body.name || "Sin nombre",
+        surname: body.last_name || body.surname || "",
         email,
         phone,
         group,
@@ -56,17 +58,16 @@ export async function POST(req: Request) {
 
     console.log("✅ Nueva solicitud guardada en DB:", { id: request.id, name: request.name, email: request.email });
 
-    // 2. Notificamos al Administrador (Asíncrono pero controlado)
+    // 2. Notificamos al Administrador
     const { sendAdminJoinNotification } = await import("@/lib/email");
     try {
-      const { first_name, last_name, instrument } = body;
       await sendAdminJoinNotification({ 
-        firstName: first_name, 
-        lastName: last_name, 
+        firstName: body.first_name || body.name || "Sin nombre", 
+        lastName: body.last_name || body.surname || "", 
         email, 
         phone, 
         group, 
-        instrument: instrument, 
+        instrument, 
         experience 
       });
     } catch (e) {

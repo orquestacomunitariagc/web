@@ -27,10 +27,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       success: true,
-      nombre: invitation.nombre || '',
+      name: invitation.name || '',
       email: invitation.sentToEmail,
-      apellidos: invitation.apellidos,
-      telefono: invitation.telefono,
+      surname: invitation.surname || '',
+      phone: invitation.phone || '',
       agrupacion: invitation.agrupacion,
       seccion: invitation.seccion,
       agrupacion2: invitation.agrupacion2,

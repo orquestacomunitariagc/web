@@ -79,10 +79,10 @@ export default function PaginaRegistroSecreta() {
         setStep(1);
         setFormData(prev => ({
           ...prev,
-          firstName: data.nombre || prev.firstName,
-          surname: data.apellidos || prev.surname,
+          firstName: data.name || prev.firstName,
+          surname: data.surname || prev.surname,
           email: data.email || prev.email,
-          phone: data.telefono || prev.phone,
+          phone: data.phone || prev.phone,
           agrupacion: data.agrupacion || prev.agrupacion,
           instrument: data.seccion || prev.instrument,
           agrupacion2: data.agrupacion2 || prev.agrupacion2,
