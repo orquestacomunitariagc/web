@@ -1,3 +1,4 @@
+// v1.0.1 - Sincronizado con isExternal
 import { PrismaClient } from "@prisma/client";
 
 const prismaClientSingleton = () => {

@@ -4,8 +4,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { logActivity } from "@/lib/logger";
 
 export async function GET() {
-  const agrupaciones = await prisma.agrupacion.findMany({ orderBy: { agrupacion: "asc" } });
-  return NextResponse.json(agrupaciones);
+  const papeles = await prisma.papel.findMany({ orderBy: { papel: "asc" } });
+  return NextResponse.json(papeles);
 }
 
 export async function POST(req: Request) {
@@ -19,13 +19,13 @@ export async function POST(req: Request) {
   if (!name) return new NextResponse("Name missing", { status: 400 });
 
   try {
-    const created = await prisma.agrupacion.create({
-      data: { agrupacion: name }
+    const created = await prisma.papel.create({
+      data: { papel: name }
     });
-    await logActivity("Agrupación Creada", clerkId, { name });
+    await logActivity("Papel Artístico Creado", clerkId, { name });
     return NextResponse.json(created);
   } catch (error) {
-    return new NextResponse("Error creating agrupación", { status: 500 });
+    return new NextResponse("Error creating papel", { status: 500 });
   }
 }
 
@@ -41,12 +41,12 @@ export async function DELETE(req: Request) {
   if (!id) return new NextResponse("ID missing", { status: 400 });
 
   try {
-    const deleted = await prisma.agrupacion.delete({
+    const deleted = await prisma.papel.delete({
       where: { id: parseInt(id) }
     });
-    await logActivity("Agrupación Eliminada", clerkId, { name: deleted.agrupacion });
+    await logActivity("Papel Artístico Eliminado", clerkId, { name: deleted.papel });
     return NextResponse.json({ success: true });
   } catch (error) {
-    return new NextResponse("Error deleting agrupación", { status: 500 });
+    return new NextResponse("Error deleting papel", { status: 500 });
   }
 }

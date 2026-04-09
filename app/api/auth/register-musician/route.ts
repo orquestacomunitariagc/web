@@ -87,9 +87,24 @@ export async function POST(req: Request) {
       })
     ]);
 
-    // 4. Crear el usuario principal
-    const newUser = await prisma.user.create({
-      data: {
+    // 4. Crear o Actualizar el usuario principal (UPSERT por DNI)
+    // Esto permite que si el usuario ya existía como registro administrativo (DNI), 
+    // se "promocione" a usuario de la plataforma conservando su historia.
+    const newUser = await prisma.user.upsert({
+      where: { dni: dni || "" },
+      update: {
+        clerkUserId: clerkUser.id,
+        name: firstName,
+        surname: surname || "",
+        email: email,
+        phone: phone || null,
+        birthDate: dob || null,
+        residenciaId: residenciaRecord.id,
+        empleoId: empleoRecord.id,
+        isExternal: false, // Ahora es un usuario de plataforma
+        isActive: true
+      },
+      create: {
         clerkUserId: clerkUser.id,
         name: firstName,
         surname: surname || "",
@@ -98,7 +113,9 @@ export async function POST(req: Request) {
         phone: phone || null,
         birthDate: dob || null,
         residenciaId: residenciaRecord.id,
-        empleoId: empleoRecord.id
+        empleoId: empleoRecord.id,
+        isExternal: false,
+        isActive: true
       }
     });
 

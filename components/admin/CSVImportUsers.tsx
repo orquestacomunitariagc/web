@@ -20,19 +20,43 @@ export default function CSVImportUsers({ onImportSuccess }: { onImportSuccess: (
         let errors = [];
         
         for (const row of rows) {
-          // Formato esperado: email, nombre, apellidos, dni, instrumentos (separados por coma), es_master (true/false), es_archivero (true/false)
+          // Normalización de claves para soportar tildes (agrupación, sección, matrícula)
+          const findVal = (keys: string[]) => {
+            const foundKey = Object.keys(row).find(k => 
+              keys.includes(k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+            );
+            return foundKey ? row[foundKey] : undefined;
+          };
+
+          const nombre = findVal(['nombre']);
+          const apellidos = findVal(['apellidos']);
+          const dni = findVal(['dni']);
+          const email = findVal(['email']);
+          const papel = findVal(['papel']);
+          const agrupacion = findVal(['agrupacion']);
+          const seccion = findVal(['seccion']);
+          const matricula = findVal(['matricula', 'matricula_coche']);
+          const esMaster = String(findVal(['es_master'])).toLowerCase() === 'true';
+          const esArchivero = String(findVal(['es_archivero'])).toLowerCase() === 'true';
+          const esExternal = String(findVal(['es_external'])).toLowerCase() === 'true';
+
           try {
             const res = await fetch('/api/admin/users/import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                email: row.email,
-                firstName: row.nombre,
-                lastName: row.apellidos,
-                dni: row.dni,
-                roles: row.instrumentos ? row.instrumentos.split(',').map((s:string) => s.trim()) : [],
-                isMaster: row.es_master === 'true',
-                isArchiver: row.es_archivero === 'true'
+                email,
+                firstName: nombre,
+                lastName: apellidos,
+                dni,
+                roles: seccion ? [seccion] : [],
+                isMaster: esMaster,
+                isArchiver: esArchivero,
+                isExternal: esExternal,
+                agrupacion,
+                seccion,
+                papel,
+                matricula
               })
             });
             
@@ -40,10 +64,10 @@ export default function CSVImportUsers({ onImportSuccess }: { onImportSuccess: (
               successCount++;
             } else {
               const errData = await res.json();
-              errors.push(`${row.email}: ${errData.error || 'Error desconocido'}`);
+              errors.push(`${row.nombre || 'Fila'}: ${errData.error || 'Error desconocido'}`);
             }
           } catch(e) {
-            errors.push(`${row.email}: Fallo de conexión`);
+            errors.push(`${row.nombre || 'Fila'}: Fallo de conexión`);
           }
         }
         
@@ -65,10 +89,10 @@ export default function CSVImportUsers({ onImportSuccess }: { onImportSuccess: (
 
   return (
     <div style={{ background: '#fff3f3', padding: '1.5rem', borderRadius: '12px', border: '1px dashed #e74c3c', marginTop: '2rem' }}>
-      <h3 style={{ margin: '0 0 1rem', color: '#c0392b' }}>👥 Importar Usuarios (Clerk + DB)</h3>
+      <h3 style={{ margin: '0 0 1rem', color: '#c0392b' }}>👥 Importar Miembros</h3>
       <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '1rem' }}>
-        Sube un CSV para crear o actualizar miembros. <br/>
-        Columnas: <code>email, nombre, apellidos, dni, instrumentos, es_master, es_archivero</code>
+        Sube un CSV para crear o actualizar miembros (Músicos, Admin o Externos). <br/>
+        Columnas: <code>nombre, apellidos, dni, papel, agrupacion, seccion, email, es_master, es_archivero, es_external, matricula_coche</code>
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <input 

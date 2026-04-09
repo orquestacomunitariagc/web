@@ -33,12 +33,21 @@ const HELPS = {
     ]
   },
   roles: {
-    title: "🎷 Diccionario de Instrumentos",
-    desc: "Define qué instrumentos existen en la orquesta.",
+    title: "🎷 Diccionario de Etiquetas",
+    desc: "Define los instrumentos y etiquetas para clasificar partituras.",
     steps: [
       "Añade instrumentos asignándoles una 'Familia' (Cuerda, Viento Madera, etc.).",
-      "Las familias son vitales para los filtros del Dashboard y el buscador del músico.",
-      "Si borras un instrumento, los músicos dejarán de ver sus partituras específicas."
+      "Estas etiquetas son las que ven los músicos para filtrar sus partituras.",
+      "Importante: La etiqueta (ej: 'Fagot') es distinta de la sección (ej: 'Fagot I')."
+    ]
+  },
+  sections: {
+    title: "🏛️ Estructura Artística",
+    desc: "Configura las secciones disponibles para los perfiles de los músicos.",
+    steps: [
+      "Define las posiciones específicas (ej: 'Violín I', 'Soprano II').",
+      "Estas secciones se usan en el alta de personal, invitaciones y CSV.",
+      "No afectan directamente a qué partituras ven los músicos, para eso usa las Etiquetas."
     ]
   },
   calendar: {
@@ -52,12 +61,15 @@ const HELPS = {
   },
   personal: {
     title: "👥 Gestión de Personal e Invitaciones",
-    desc: "Control absoluto de quién entra a la plataforma.",
+    desc: "Control absoluto de quién entra y quién colabora.",
     steps: [
-      "Invitaciones Nominativas: Crea un código de un solo uso para un músico nuevo.",
-      "Roles Administrativos: Activa 'Master' (total) o 'Archivero' (archivos).",
-      "Baneo: El botón de bloqueo impide el acceso inmediato sin borrar sus datos.",
-      "Importación de Usuarios: Usa el CSV para dar de alta a toda una plantilla a la vez."
+      "Selección de Modo: Al crear un usuario manualmente, elige entre 'Estándar' (con acceso y email) o 'Externo' (solo registro en base de datos, sin contraseña/email obligatorio).",
+      "Perfiles Artísticos: Puedes asignar múltiples combinaciones de Agrupación, Sección y Papel (Músico, Director, etc.) a un solo usuario.",
+      "Identificación Especial: Los usuarios externos aparecen con un badge naranja 'EXTERNO' para diferenciarlos fácilmente de los registrados vía Clerk.",
+      "Registro de Matrícula de Coche: Campo disponible para control de acceso o parking (ej: 1234 ABC).",
+      "Roles en el Sistema: Activa 'Master' (total) o 'Archivero' (gestión de partituras). Estos roles se bloquean automáticamente para usuarios externos.",
+      "Importación Masiva CSV: Soporta las nuevas columnas 'es_externo', 'agrupacion', 'seccion' y 'papel' para crear plantillas completas con perfiles artísticos en segundos.",
+      "Bloqueo y Filtros: Usa el botón de baneo para pausar accesos y utiliza los filtros superiores para ver solo administradores, músicos o externos."
     ]
   },
   logs: {

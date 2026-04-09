@@ -9,31 +9,33 @@ import CSVImportScores from '@/components/admin/CSVImportScores';
 import CSVImportUsers from '@/components/admin/CSVImportUsers';
 import AdminGuideModal from '@/components/admin/AdminGuideModal';
 
-type TabType = 'scores' | 'categories' | 'roles' | 'personal' | 'dashboard' | 'calendar' | 'logs' | 'requests';
+type TabType = 'scores' | 'categories' | 'roles' | 'sections' | 'personal' | 'dashboard' | 'calendar' | 'logs' | 'requests';
 const DEFAULT_FAMILIAS = ["Cuerda", "Viento Madera", "Viento Metal", "Teclados", "Percusión", "Coro", "Tuttis", "Generales", "Otros"];
 
 export default function AdminOCGCPartituras() {
   const { user, isLoaded } = useUser();
-  const [rolesDict, setRolesDict] = useState<Record<string, any[]>>({});
-  const [newRoleFamily, setNewRoleFamily] = useState('Otros');
-  const [predefinedRoles, setPredefinedRoles] = useState<string[]>([]);
+  const [tagsDict, setTagsDict] = useState<Record<string, any[]>>({});
+  const [newTagFamily, setNewTagFamily] = useState('Otros');
+  const [predefinedTags, setPredefinedTags] = useState<string[]>([]);
   const [scores, setScores] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [agrupaciones, setAgrupaciones] = useState<any[]>([]);
+  const [papeles, setPapeles] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<TabType | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingRole, setEditingRole] = useState<{ id: number; name: string } | null>(null);
+  const [editingTag, setEditingTag] = useState<{ id: number; name: string } | null>(null);
   const [editingCategory, setEditingCategory] = useState<{ id: number; name: string; eventDate?: string | null } | null>(null);
   const [editingScore, setEditingScore] = useState<any | null>(null);
-  const [newRoleName, setNewRoleName] = useState('');
+  const [newTagName, setNewTagName] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editingMemberData, setEditingMemberData] = useState<any | null>(null);
-  const [selectedMemberRoles, setSelectedMemberRoles] = useState<string[]>([]);
+  const [selectedMemberTags, setSelectedMemberTags] = useState<string[]>([]);
   
   // Estados para invitaciones
   const [invitations, setInvitations] = useState<any[]>([]);
@@ -56,6 +58,29 @@ export default function AdminOCGCPartituras() {
 
   // Estado para el último link generado
   const [lastGeneratedLink, setLastGeneratedLink] = useState<string | null>(null);
+
+  // Estado para creación manual de usuarios
+  const [isManualCreateOpen, setIsManualCreateOpen] = useState(false);
+  const [isCreatingManual, setIsCreatingManual] = useState(false);
+  const [manualUser, setManualUser] = useState({
+    firstName: '',
+    surname: '',
+    email: '',
+    username: '',
+    password: '',
+    dni: '',
+    phone: '',
+    matricula: '',
+    isMaster: false,
+    isArchiver: false,
+    isExternal: false,
+    artisticProfiles: [{ agrupacion: '', seccion: '', papel: 'Músico' }]
+  });
+
+  // Estados para promover usuario de DB a Clerk (Acceso Plataforma)
+  const [upgradingMember, setUpgradingMember] = useState<any | null>(null);
+  const [upgradeData, setUpgradeData] = useState({ email: '', username: '', password: '' });
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -80,27 +105,150 @@ export default function AdminOCGCPartituras() {
   const [searchMember, setSearchMember] = useState('');
   const [filterPersonalRole, setFilterPersonalRole] = useState<string>('all');
   const [filterPersonalInstrument, setFilterPersonalInstrument] = useState<string>('all');
+  const [secciones, setSecciones] = useState<any[]>([]);
 
   const isMaster = !!user?.publicMetadata?.isMaster;
   const isArchiver = !!user?.publicMetadata?.isArchiver;
 
+  const [newSectionName, setNewSectionName] = useState('');
+  const [newAgrupacionName, setNewAgrupacionName] = useState('');
+  const [newPapelName, setNewPapelName] = useState('');
+  const [isCreatingSection, setIsCreatingSection] = useState(false);
+  const [isCreatingAgrupacion, setIsCreatingAgrupacion] = useState(false);
+  const [isCreatingPapel, setIsCreatingPapel] = useState(false);
+
+  const createSection = async () => {
+    if (!newSectionName.trim()) return;
+    setIsCreatingSection(true);
+    try {
+      const res = await fetch("/api/secciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seccion: newSectionName })
+      });
+      if (res.ok) {
+        setNewSectionName('');
+        loadData(true);
+      }
+    } catch (error) {
+      console.error("Error creating section:", error);
+    } finally {
+      setIsCreatingSection(false);
+    }
+  };
+
+  const deleteSection = async (id: number) => {
+    if (!confirm("¿Eliminar esta sección artística?")) return;
+    try {
+      const res = await fetch(`/api/secciones?id=${id}`, { method: "DELETE" });
+      if (res.ok) loadData(true);
+    } catch (error) { console.error("Error deleting section:", error); }
+  };
+
+  const createAgrupacion = async () => {
+    if (!newAgrupacionName.trim()) return;
+    setIsCreatingAgrupacion(true);
+    try {
+      const res = await fetch("/api/agrupaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newAgrupacionName })
+      });
+      if (res.ok) { setNewAgrupacionName(''); loadData(true); }
+    } catch (error) { console.error("Error creating agrupacion:", error); }
+    finally { setIsCreatingAgrupacion(false); }
+  };
+
+  const deleteAgrupacion = async (id: number) => {
+    if (!confirm("¿Eliminar esta agrupación?")) return;
+    try {
+      const res = await fetch(`/api/agrupaciones?id=${id}`, { method: "DELETE" });
+      if (res.ok) loadData(true);
+    } catch (error) { console.error("Error deleting agrupacion:", error); }
+  };
+
+  const createPapel = async () => {
+    if (!newPapelName.trim()) return;
+    setIsCreatingPapel(true);
+    try {
+      const res = await fetch("/api/papeles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPapelName })
+      });
+      if (res.ok) { setNewPapelName(''); loadData(true); }
+    } catch (error) { console.error("Error creating papel:", error); }
+    finally { setIsCreatingPapel(false); }
+  };
+
+  const deletePapel = async (id: number) => {
+    if (!confirm("¿Eliminar este papel artístico?")) return;
+    try {
+      const res = await fetch(`/api/papeles?id=${id}`, { method: "DELETE" });
+      if (res.ok) loadData(true);
+    } catch (error) { console.error("Error deleting papel:", error); }
+  };
+
+  const upgradeToPlatform = async () => {
+    if (!upgradeData.email || !upgradeData.username || !upgradeData.password) {
+      alert("Por favor, rellena Email, Usuario y Contraseña para activar el acceso.");
+      return;
+    }
+    setIsUpgrading(true);
+    try {
+      const res = await fetch("/api/admin/users/upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dbId: upgradingMember.dbId,
+          ...upgradeData,
+          targetRole: upgradingMember.targetRole,
+          targetValue: upgradingMember.targetValue
+        })
+      });
+      
+      if (res.ok) {
+        alert(`¡Acceso activado con éxito! El usuario ahora tiene cuenta en la plataforma.`);
+        setUpgradingMember(null);
+        setUpgradeData({ email: '', username: '', password: '' });
+        loadMembers(true); // Recargar lista para ver el nuevo ID de Clerk
+      } else {
+        const err = await res.json();
+        alert(`Error: ${err.error || "No se pudo activar el acceso"}`);
+      }
+    } catch (error) {
+      console.error("Error upgrading user:", error);
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   const loadData = async (force = false) => {
     if (dataLoaded && !force) return;
     try {
-      const [rolesRes, scoresRes, categoriesRes] = await Promise.all([
+      const [tagsRes, scoresRes, categoriesRes, agrupsRes, papelesRes, seccionesRes] = await Promise.all([
         fetch("/api/roles"),
         fetch("/api/scores"),
-        fetch("/api/categories")
+        fetch("/api/categories"),
+        fetch("/api/agrupaciones"),
+        fetch("/api/papeles"),
+        fetch("/api/secciones")
       ]);
-      const [rolesData, scoresData, categoriesData] = await Promise.all([
-        rolesRes.json(),
-        scoresRes.json(),
-        categoriesRes.json()
+      const [tagsData, scoresData, categoriesData, agrupsData, papelesData, seccionesData] = await Promise.all([
+        tagsRes.ok ? tagsRes.json() : {},
+        scoresRes.ok ? scoresRes.json() : [],
+        categoriesRes.ok ? categoriesRes.json() : [],
+        agrupsRes.ok ? agrupsRes.json() : [],
+        papelesRes.ok ? papelesRes.json() : [],
+        seccionesRes.ok ? seccionesRes.json() : []
       ]);
-      setRolesDict(rolesData);
-      setPredefinedRoles(Object.values(rolesData).flat().map((r: any) => r.name));
+      setTagsDict(tagsData);
+      setPredefinedTags(Object.values(tagsData).flat().map((i: any) => i.name));
       setScores(scoresData);
       setCategories(categoriesData);
+      setAgrupaciones(agrupsData);
+      setPapeles(papelesData);
+      setSecciones(seccionesData);
       setDataLoaded(true);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -136,7 +284,7 @@ export default function AdminOCGCPartituras() {
   }, [isLoaded, isMaster, isArchiver, user, activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'scores' || activeTab === 'categories' || activeTab === 'roles' || activeTab === 'personal') {
+    if (activeTab === 'scores' || activeTab === 'categories' || activeTab === 'roles' || activeTab === 'personal' || activeTab === 'sections') {
       loadData();
     }
     
@@ -145,8 +293,21 @@ export default function AdminOCGCPartituras() {
     }
   }, [activeTab]);
 
-  const toggleRole = (r: string) => {
-    setSelectedRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
+  // Mantener el modal de edición sincronizado con la lista maestra (para cambios en cascada)
+  useEffect(() => {
+    if (editingMemberData) {
+      const updated = members.find(m => m.id === editingMemberData.id);
+      if (updated) {
+        // Solo actualizamos si hay cambios reales para evitar bucles de renderizado
+        if (JSON.stringify(updated) !== JSON.stringify(editingMemberData)) {
+          setEditingMemberData(updated);
+        }
+      }
+    }
+  }, [members]);
+
+  const toggleTag = (r: string) => {
+    setSelectedTags(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
 
   const deleteScore = async (id: number) => {
@@ -159,29 +320,32 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const createRole = async () => {
-    if (!newRoleName) return;
+  const createTag = async () => {
+    if (!newTagName) return;
     try {
       const res = await fetch("/api/roles", {
-        method: 'POST',
-        body: JSON.stringify({ name: newRoleName, familia: newRoleFamily })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTagName, familia: newTagFamily })
       });
       if (res.ok) {
-        setNewRoleName('');
+        setNewTagName('');
         loadData(true);
+      } else {
+        alert("Error al crear la etiqueta");
       }
     } catch (error) {
-      console.error("Error creating role:", error);
+      console.error("Error creating tag:", error);
     }
   };
 
-  const deleteRole = async (id: number) => {
-    if (!confirm("¿Seguro que quieres eliminar esta sección?")) return;
+  const deleteTag = async (id: number) => {
+    if (!confirm("¿Eliminar esta etiqueta? Los músicos que la tengan asignada dejarán de ver las partituras asociadas.")) return;
     try {
       const res = await fetch(`/api/roles?id=${id}`, { method: 'DELETE' });
       if (res.ok) loadData(true);
     } catch (error) {
-      console.error("Error deleting role:", error);
+      console.error("Error deleting tag:", error);
     }
   };
 
@@ -253,6 +417,14 @@ export default function AdminOCGCPartituras() {
   };
 
   const toggleArchiverStatus = async (userId: string, isCurrentlyArchiver: boolean) => {
+    // Si es un usuario de DB sin Clerk, forzamos creación de cuenta antes de dar permisos
+    if (userId.startsWith('ext_')) {
+      const dbMember = members.find(m => m.id === userId);
+      setUpgradingMember({ ...dbMember, targetRole: 'archiver', targetValue: !isCurrentlyArchiver });
+      setUpgradeData({ ...upgradeData, email: dbMember.email !== '—' ? dbMember.email : '' });
+      return;
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -281,23 +453,53 @@ export default function AdminOCGCPartituras() {
         body: JSON.stringify({
           userId,
           action: "update-roles",
-          roles: selectedMemberRoles
+          roles: selectedMemberTags
         })
       });
       
       if (res.ok) {
         // Actualización dinámica local
         setMembers(prev => prev.map(m => 
-          m.id === userId ? { ...m, roles: selectedMemberRoles } : m
+          m.id === userId ? { ...m, roles: selectedMemberTags } : m
         ));
-        setEditingMemberData(null);
       }
     } catch (error) {
       console.error("Error updating member roles:", error);
     }
   };
 
+  const updateEstructura = async (userId: string, estId: number, data: { activo?: boolean, atril?: string | number }) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          estructuraId: estId,
+          action: "update-estructura",
+          ...data
+        })
+      });
+      
+      if (res.ok) {
+        // Al cambiar estructura, recargamos personal porque puede haber cambiado el estado del perfil
+        loadMembers(true);
+        // Si estamos en medio de una edición, esto refrescará los datos del modal también al recargar los integrantes
+      }
+    } catch (error) {
+      console.error("Error updating estructura:", error);
+    }
+  };
+
   const toggleMasterStatus = async (userId: string, isCurrentlyMaster: boolean) => {
+    // Si es un usuario de DB sin Clerk, forzamos creación de cuenta antes de dar permisos
+    if (userId.startsWith('ext_')) {
+      const dbMember = members.find(m => m.id === userId);
+      setUpgradingMember({ ...dbMember, targetRole: 'master', targetValue: !isCurrentlyMaster });
+      setUpgradeData({ ...upgradeData, email: dbMember.email !== '—' ? dbMember.email : '' });
+      return;
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -330,9 +532,7 @@ export default function AdminOCGCPartituras() {
         })
       });
       if (res.ok) {
-        setMembers(prev => prev.map(m => 
-          m.id === userId ? { ...m, isBanned: !isBanned } : m
-        ));
+        loadMembers(true); // Recargar todo para ver cambios en estructuras vinculadas
       }
     } catch (error) {
       console.error("Error toggling ban status:", error);
@@ -444,6 +644,47 @@ export default function AdminOCGCPartituras() {
     } catch (err) { console.error("Error deleting request:", err); }
   };
 
+  const createManualUser = async () => {
+    const { firstName, email, username, password, dni, isExternal } = manualUser;
+    if (!firstName || !dni) {
+      alert("Por favor, rellena al menos el Nombre y el DNI (*)");
+      return;
+    }
+    if (!isExternal && (!email || !username || !password)) {
+      alert("Para usuarios con acceso (No Externos), el Email, Usuario y Contraseña son obligatorios.");
+      return;
+    }
+    setIsCreatingManual(true);
+    try {
+      const res = await fetch("/api/admin/users/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...manualUser,
+          artisticProfiles: manualUser.artisticProfiles.filter(p => p.agrupacion && p.seccion)
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("¡Usuario creado con éxito!");
+        setIsManualCreateOpen(false);
+        setManualUser({
+          firstName: '', surname: '', email: '', username: '', password: '', dni: '', phone: '', matricula: '',
+          isMaster: false, isArchiver: false, isExternal: false,
+          artisticProfiles: [{ agrupacion: '', seccion: '', papel: 'Músico' }]
+        });
+        loadMembers(true);
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error creating manual user:", error);
+      alert("Error al conectar con el servidor.");
+    } finally {
+      setIsCreatingManual(false);
+    }
+  };
+
   if (!isLoaded) return <p>Cargando panel de gestión...</p>;
 
   const filteredScores = scores.filter(s => {
@@ -462,7 +703,8 @@ export default function AdminOCGCPartituras() {
                       (filterPersonalRole === 'master' && m.isMaster) || 
                       (filterPersonalRole === 'archiver' && m.isArchiver) ||
                       (filterPersonalRole === 'banned' && m.isBanned) ||
-                      (filterPersonalRole === 'normal' && !m.isMaster && !m.isArchiver && !m.isBanned);
+                      (filterPersonalRole === 'external' && m.isExternal) ||
+                      (filterPersonalRole === 'normal' && !m.isMaster && !m.isArchiver && !m.isBanned && !m.isExternal);
     const matchInst = filterPersonalInstrument === 'all' || m.roles?.includes(filterPersonalInstrument);
     return matchSearch && matchRole && matchInst;
   });
@@ -490,7 +732,7 @@ export default function AdminOCGCPartituras() {
           {isMaster && <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>Dashboard</button>}
           <button onClick={() => setActiveTab('scores')} className={activeTab === 'scores' ? 'active' : ''}>Partituras</button>
           <button onClick={() => setActiveTab('categories')} className={activeTab === 'categories' ? 'active' : ''}>Programas</button>
-          <button onClick={() => setActiveTab('roles')} className={activeTab === 'roles' ? 'active' : ''}>Instrumentos</button>
+          <button onClick={() => setActiveTab('roles')} className={activeTab === 'roles' ? 'active' : ''}>Etiquetas</button>
           <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'active' : ''}>Calendario</button>
           {isMaster && (
             <>
@@ -507,6 +749,7 @@ export default function AdminOCGCPartituras() {
                 )}
               </button>
               <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'active' : ''}>Personal</button>
+              <button onClick={() => setActiveTab('sections')} className={activeTab === 'sections' ? 'active' : ''}>Catálogos</button>
               <button onClick={() => setActiveTab('logs')} className={activeTab === 'logs' ? 'active' : ''}>Logs</button>
             </>
           )}
@@ -528,7 +771,8 @@ export default function AdminOCGCPartituras() {
                 e.preventDefault();
                 alert("Debes seleccionar un Programa para la partitura o marcarla como Documento.");
               }
-              if (!isDoc && selectedRoles.length === 0) {
+              const isDocCheck = (e.currentTarget.elements.namedItem("isDocument") as HTMLInputElement).checked || uploadIsDoc;
+              if (!isDocCheck && selectedTags.length === 0) {
                  e.preventDefault();
                  alert("Debes seleccionar al menos un instrumento o marcar la opción Documento para que todos puedan verlo.");
               }
@@ -542,20 +786,20 @@ export default function AdminOCGCPartituras() {
               
               <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
                 <p style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#444', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Seleccionar Destinatarios:</p>
-                {Object.keys(rolesDict).length > 0 ? (
-                  Object.entries(rolesDict).map(([familia, instrumentos]) => (
+                {Object.keys(tagsDict).length > 0 ? (
+                  Object.entries(tagsDict).map(([familia, instrumentos]) => (
                     instrumentos.length > 0 && (
                       <div key={familia} style={{ marginBottom: '1.2rem' }}>
                         <h4 style={{ fontSize: '0.75rem', color: '#478AC9', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.6rem', borderLeft: '3px solid #478AC9', paddingLeft: '0.6rem' }}>{familia}</h4>
                         <div className="instrument-chips-grid">
                           {instrumentos.map((r: any) => (
-                            <label key={r.name} className={`instrument-chip ${selectedRoles.includes(r.name) ? 'selected' : ''}`}>
+                            <label key={r.name} className={`instrument-chip ${selectedTags.includes(r.name) ? 'selected' : ''}`}>
                               <input 
                                 type="checkbox" 
                                 name="roles" 
                                 value={r.name} 
-                                checked={selectedRoles.includes(r.name)} 
-                                onChange={() => toggleRole(r.name)} 
+                                checked={selectedTags.includes(r.name)} 
+                                onChange={() => toggleTag(r.name)} 
                                 style={{ display: 'none' }} 
                               />
                               {r.name}
@@ -566,7 +810,7 @@ export default function AdminOCGCPartituras() {
                     )
                   ))
                 ) : (
-                  <p style={{ fontSize: '0.85rem', color: '#999' }}>Cargando instrumentos...</p>
+                  <p style={{ fontSize: '0.85rem', color: '#999' }}>Cargando etiquetas de instrumentos...</p>
                 )}
               </div>
 
@@ -577,7 +821,7 @@ export default function AdminOCGCPartituras() {
               <div style={{ padding: '1rem', background: '#f8f9fa', borderRadius: '6px', fontSize: '0.9rem', color: '#555', marginBottom: '1rem', border: '1px solid #dee2e6' }}>
                 <strong style={{ display: 'block', marginBottom: '4px', color: '#333' }}>Nombre del archivo final que se guardará:</strong>
                 <code style={{ background: '#e9ecef', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#0984e3' }}>
-                  {uploadTitle ? `${uploadTitle.trim().replace(/[^a-zA-Z0-9_ -]/g, "_").replace(/\s+/g, "_")}_${uploadIsDoc ? "Documento" : (selectedRoles.length > 0 ? selectedRoles.map(r => r.replace(/[^a-zA-Z0-9]/g, "")).join("_") : "")}.pdf` : "esperando_datos.pdf"}
+                  {uploadTitle ? `${uploadTitle.trim().replace(/[^a-zA-Z0-9_ -]/g, "_").replace(/\s+/g, "_")}_${uploadIsDoc ? "Documento" : (selectedTags.length > 0 ? selectedTags.map(r => r.replace(/[^a-zA-Z0-9]/g, "")).join("_") : "")}.pdf` : "esperando_datos.pdf"}
                 </code>
               </div>
               <button type="submit" className="btn-main-admin">Publicar Archivo</button>
@@ -598,8 +842,8 @@ export default function AdminOCGCPartituras() {
                   {categories.map(c => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                 </select>
                 <select value={filterScoreInstrument} onChange={(e) => setFilterScoreInstrument(e.target.value)} style={{ padding: '0.6rem', border: '1px solid #ddd', borderRadius: '6px' }}>
-                  <option value="all">Secciones / Instrumentos</option>
-                  {predefinedRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                  <option value="all">Filtro por Etiquetas</option>
+                  {predefinedTags.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <input type="text" placeholder="Buscar partitura..." value={searchScore} onChange={(e) => setSearchScore(e.target.value)} style={{ padding: '0.6rem', border: '1px solid #ddd', borderRadius: '6px', minWidth: '150px' }} />
               </div>
@@ -653,9 +897,9 @@ export default function AdminOCGCPartituras() {
                 </label>
                 {!editingScore.isDocument && (
                   <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Secciones con acceso permitido</label>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Etiquetas asignadas al archivo</label>
                     <div className="instrument-chips-grid" style={{ marginTop: 0, padding: '1rem', border: '1px solid #eee', borderRadius: '8px', background: '#fcfcfc', maxHeight: '180px', overflowY: 'auto' }}>
-                      {predefinedRoles.map(r => {
+                      {predefinedTags.map(r => {
                         const isSelected = editingScore.allowedRoles?.includes(r);
                         return (
                           <label key={r} className={`instrument-chip ${isSelected ? 'selected' : ''}`}>
@@ -781,29 +1025,29 @@ export default function AdminOCGCPartituras() {
         <>
         <div className="admin-content-grid">
           <section className="admin-form-card">
-            <h2>Nuevo Instrumento / Tag</h2>
+            <h2>Nuevo Instrumento / Etiqueta</h2>
             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
               <input
                 type="text"
-                placeholder="Nombre (ej: Violín primero)"
-                value={newRoleName}
-                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Nombre (ej: Violín)"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
               />
-              <select value={newRoleFamily} onChange={(e) => setNewRoleFamily(e.target.value)} style={{padding: '0.8rem', border: '1px solid #ddd', borderRadius: '8px'}}>
+              <select value={newTagFamily} onChange={(e) => setNewTagFamily(e.target.value)} style={{padding: '0.8rem', border: '1px solid #ddd', borderRadius: '8px'}}>
                 {DEFAULT_FAMILIAS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
-              <button onClick={createRole} className="btn-main-admin">Añadir al Diccionario</button>
+              <button onClick={createTag} className="btn-main-admin">Añadir Etiqueta</button>
             </div>
           </section>
 
           <section className="admin-list-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Diccionario Dinámico de Roles</h3>
+              <h3 style={{ margin: 0 }}>Diccionario de Etiquetas (Partituras)</h3>
               <input type="text" placeholder="Filtrar vista..." value={searchRole} onChange={(e) => setSearchRole(e.target.value)} style={{ padding: '0.6rem', border: '1px solid #ddd', borderRadius: '6px', minWidth: '250px' }} />
             </div>
             
             <div className="dictionary-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {Object.entries(rolesDict).map(([familia, instrumentos]) => {
+              {Object.entries(tagsDict).map(([familia, instrumentos]) => {
                  if (familia === 'Tuttis') return null; // Ocultar familia redundante Tutti
                  const matchInst = instrumentos.filter(i => i.name.toLowerCase().includes(searchRole.toLowerCase()));
                  if (matchInst.length === 0 && searchRole !== '') return null;
@@ -816,14 +1060,14 @@ export default function AdminOCGCPartituras() {
                         <div key={inst.id} style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #ccc', padding: '0.3rem 0.7rem', borderRadius: '20px', fontSize: '0.85rem' }}>
                           <span>{inst.name}</span>
                           <button 
-                            onClick={() => setEditingRole({ id: inst.id, name: inst.name })} 
+                            onClick={() => setEditingTag({ id: inst.id, name: inst.name })} 
                             style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#478AC9', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}
                             title="Editar"
                           >
                             ✎
                           </button>
                           <button 
-                            onClick={() => deleteRole(inst.id)} 
+                            onClick={() => deleteTag(inst.id)} 
                             style={{ marginLeft: '4px', border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem' }}
                             title="Eliminar"
                           >
@@ -840,41 +1084,41 @@ export default function AdminOCGCPartituras() {
         </div>
 
         {/* Modal Edición de Rol / Instrumento */}
-        {editingRole && (
+        {editingTag && (
           <div className="admin-modal-overlay">
             <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
               <div className="modal-header">
                 <div>
-                  <h2>Editar Instrumento o Sección</h2>
+                  <h2>Editar Instrumento o Etiqueta</h2>
                 </div>
-                <button onClick={() => setEditingRole(null)} className="btn-close-modal">✕</button>
+                <button onClick={() => setEditingTag(null)} className="btn-close-modal">✕</button>
               </div>
               <div className="modal-body">
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Nombre</label>
                   <input
                     type="text"
-                    value={editingRole.name}
-                    onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
+                    value={editingTag.name}
+                    onChange={(e) => setEditingTag({ ...editingTag, name: e.target.value })}
                     style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
                   />
                 </div>
               </div>
               <div className="modal-footer">
-                <button onClick={() => setEditingRole(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={() => setEditingTag(null)} className="btn-cancel">Cancelar</button>
                 <button onClick={async () => {
-                  if (!editingRole.name.trim()) return;
+                  if (!editingTag.name.trim()) return;
                   try {
-                    const res = await fetch(`/api/roles/${editingRole.id}`, {
+                    const res = await fetch(`/api/roles/${editingTag.id}`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name: editingRole.name })
+                      body: JSON.stringify({ name: editingTag.name })
                     });
                     if (res.ok) {
                       loadData(true);
-                      setEditingRole(null);
+                      setEditingTag(null);
                     } else {
-                      alert("No se ha podido actualizar la sección.");
+                      alert("No se ha podido actualizar la etiqueta.");
                     }
                   } catch(e) { }
                 }} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
@@ -885,10 +1129,104 @@ export default function AdminOCGCPartituras() {
         </>
       )}
 
+      {activeTab === 'sections' && (
+        <div className="admin-content-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+          {/* COLUMNA 1: AGRUPACIONES */}
+          <section className="admin-form-card">
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>🎭 Agrupaciones</h2>
+            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.2rem' }}>Conjuntos artísticos de la OCGC (Orquesta, Coro, etc.).</p>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              <input
+                type="text"
+                placeholder="Nueva agrupación..."
+                value={newAgrupacionName}
+                onChange={(e) => setNewAgrupacionName(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button onClick={createAgrupacion} className="btn-main-admin" disabled={isCreatingAgrupacion} style={{ padding: '0.5rem 1rem', width: 'auto' }}>
+                {isCreatingAgrupacion ? "..." : "+"}
+              </button>
+            </div>
+            
+            <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {agrupaciones.map((a: any) => (
+                <div key={a.id} className="catalog-item-row">
+                  <span>{a.agrupacion}</span>
+                  <button onClick={() => deleteAgrupacion(a.id)} className="btn-delete-small">×</button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* COLUMNA 2: PAPELES */}
+          <section className="admin-form-card">
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>👤 Papeles</h2>
+            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.2rem' }}>Funciones de los miembros (Músico, Director, etc.).</p>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              <input
+                type="text"
+                placeholder="Nuevo papel..."
+                value={newPapelName}
+                onChange={(e) => setNewPapelName(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button onClick={createPapel} className="btn-main-admin" disabled={isCreatingPapel} style={{ padding: '0.5rem 1rem', width: 'auto' }}>
+                {isCreatingPapel ? "..." : "+"}
+              </button>
+            </div>
+            
+            <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {papeles.map((p: any) => (
+                <div key={p.id} className="catalog-item-row">
+                  <span>{p.papel}</span>
+                  <button onClick={() => deletePapel(p.id)} className="btn-delete-small">×</button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* COLUMNA 3: SECCIONES */}
+          <section className="admin-form-card">
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>🎻 Secciones</h2>
+            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1.2rem' }}>Puestos específicos (Soprano I, Violín II, Trombón...).</p>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              <input
+                type="text"
+                placeholder="Nueva sección..."
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button onClick={createSection} className="btn-main-admin" disabled={isCreatingSection} style={{ padding: '0.5rem 1rem', width: 'auto' }}>
+                {isCreatingSection ? "..." : "+"}
+              </button>
+            </div>
+            
+            <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {secciones.sort((a,b) => a.seccion.localeCompare(b.seccion)).map((s: any) => (
+                <div key={s.id} className="catalog-item-row">
+                  <span>{s.seccion}</span>
+                  <button onClick={() => deleteSection(s.id)} className="btn-delete-small">×</button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+
       {isMaster && activeTab === 'personal' && (
         <section className="admin-list-card">
           <div className="invitation-generation-box">
-            <h3 style={{ margin: '0 0 1.2rem 0', fontSize: '1.1rem' }}>🎟️ Generar Nueva Invitación Nominativa</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', gap: '1rem', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>🎟️ Invitaciones e Incorporación</h3>
+              <button 
+                onClick={() => setIsManualCreateOpen(true)}
+                className="btn-main-admin"
+                style={{ width: 'auto', padding: '0.6rem 1.2rem', background: 'var(--clr-navy)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+              >
+                👤 Crear Usuario Manualmente
+              </button>
+            </div>
             
             <div className="invitation-expanded-form">
               <div className="invite-row-grid" style={{ marginBottom: '1rem' }}>
@@ -926,11 +1264,11 @@ export default function AdminOCGCPartituras() {
                 <div className="invite-row-grid">
                   <select value={inviteAgrupacion} onChange={(e) => setInviteAgrupacion(e.target.value)}>
                     <option value="">-- Agrupación 1 --</option>
-                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                    {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
                   </select>
                   <select value={inviteSection} onChange={(e) => setInviteSection(e.target.value)}>
                     <option value="">-- Sección 1 --</option>
-                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                    {[...secciones].sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.seccion}>{s.seccion}</option>)}
                   </select>
                 </div>
               </div>
@@ -940,11 +1278,11 @@ export default function AdminOCGCPartituras() {
                 <div className="invite-row-grid">
                   <select value={inviteAgrupacion2} onChange={(e) => setInviteAgrupacion2(e.target.value)}>
                     <option value="">-- Agrupación 2 --</option>
-                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                    {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
                   </select>
                   <select value={inviteSection2} onChange={(e) => setInviteSection2(e.target.value)}>
                     <option value="">-- Sección 2 --</option>
-                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                    {[...secciones].sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.seccion}>{s.seccion}</option>)}
                   </select>
                 </div>
               </div>
@@ -954,11 +1292,11 @@ export default function AdminOCGCPartituras() {
                 <div className="invite-row-grid">
                   <select value={inviteAgrupacion3} onChange={(e) => setInviteAgrupacion3(e.target.value)}>
                     <option value="">-- Agrupación 3 --</option>
-                    {["Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band"].map(a => <option key={a} value={a}>{a}</option>)}
+                    {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
                   </select>
                   <select value={inviteSection3} onChange={(e) => setInviteSection3(e.target.value)}>
                     <option value="">-- Sección 3 --</option>
-                    {[...predefinedRoles].filter(r => !r.includes("- Tutti")).sort().map(r => <option key={r} value={r}>{r}</option>)}
+                    {[...secciones].sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.seccion}>{s.seccion}</option>)}
                   </select>
                 </div>
               </div>
@@ -1065,13 +1403,14 @@ export default function AdminOCGCPartituras() {
             <select value={filterPersonalRole} onChange={(e) => setFilterPersonalRole(e.target.value)} style={{ padding: '0.8rem', border: '1px solid #ddd', borderRadius: '6px' }}>
               <option value="all">Todos los permisos</option>
               <option value="normal">Músicos (Sin admin)</option>
-              <option value="archiver">Archiveros</option>
+               <option value="archiver">Archiveros</option>
               <option value="master">Masters</option>
+              <option value="external">Externos (Sin Acceso)</option>
               <option value="banned">Bloqueados</option>
             </select>
             <select value={filterPersonalInstrument} onChange={(e) => setFilterPersonalInstrument(e.target.value)} style={{ padding: '0.6rem', border: '1px solid #ddd', borderRadius: '6px' }}>
-              <option value="all">Instrumento / Sección</option>
-              {predefinedRoles.map(r => <option key={r} value={r}>{r}</option>)}
+              <option value="all">Filtrar por Etiqueta</option>
+              {predefinedTags.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <input type="text" placeholder="Nombre/Email..." value={searchMember} onChange={(e) => setSearchMember(e.target.value)} style={{ flex: 1, padding: '0.8rem', border: '1px solid #ddd', borderRadius: '6px', minWidth: '200px' }} />
           </div>
@@ -1091,8 +1430,11 @@ export default function AdminOCGCPartituras() {
               </thead>
               <tbody>
                 {filteredMembers.map(m => (
-                  <tr key={m.id} className={m.isBanned ? 'tr-banned' : ''}>
-                    <td className="member-name">{m.name}</td>
+                  <tr key={m.id} className={`${m.isBanned ? 'tr-banned' : ''} ${m.isExternal ? 'tr-external' : ''}`}>
+                    <td className="member-name">
+                      {m.name}
+                      {m.isExternal && <span className="badge-external" style={{ marginLeft: '0.5rem', background: '#ffeaa7', color: '#d35400', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>Externo</span>}
+                    </td>
                     <td className="member-email">{m.email}</td>
                     <td className="member-roles">
                       <span>{m.roles.length > 0 ? m.roles.join(", ") : "—"}</span>
@@ -1126,8 +1468,8 @@ export default function AdminOCGCPartituras() {
                     </td>
                     <td className="action-buttons">
                       <button onClick={() => {
-                        setEditingMemberData(m);
-                        setSelectedMemberRoles(m.roles);
+                        setEditingMemberData({...m, isExternal: !!m.isExternal});
+                        setSelectedMemberTags(m.roles || []);
                       }} className="btn-edit" title="Editar instrumentos">✎</button>
                     </td>
                   </tr>
@@ -1149,94 +1491,351 @@ export default function AdminOCGCPartituras() {
                 </div>
                 
                 <div className="modal-body">
-                  <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Asignar Instrumentos / Secciones</h3>
-                  <div className="role-selector-grid">
-                    {[...predefinedRoles]
-                      .filter(r => !r.includes("- Tutti")) // Ocultar Tutti en edición de miembros
-                      .sort((a,b) => a.localeCompare(b))
-                      .map(r => (
-                        <label key={r} className={`role-chip-card ${selectedMemberRoles.includes(r) ? 'selected' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={selectedMemberRoles.includes(r)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedMemberRoles([...selectedMemberRoles, r]);
-                            } else {
-                              setSelectedMemberRoles(selectedMemberRoles.filter(sr => sr !== r));
-                            }
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                        <span className="chip-check">{selectedMemberRoles.includes(r) ? '✓' : '+'}</span>
-                        <span className="chip-text">{r}</span>
-                      </label>
-                    ))}
+                  <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Perfil Artístico y Ubicación (Base de Datos)</h3>
+                  <div style={{ marginBottom: '2rem', overflowX: 'auto' }}>
+                    <table className="personal-table" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #eee' }}>
+                      <thead>
+                        <tr>
+                          <th>Agrupación</th>
+                          <th>Sección</th>
+                          <th style={{ textAlign: 'center' }}>Estado</th>
+                          <th>Atril</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editingMemberData.estructuras && editingMemberData.estructuras.length > 0 ? (
+                          editingMemberData.estructuras.map((est: any) => (
+                            <tr key={est.id}>
+                              <td style={{ fontSize: '0.85rem' }}>{est.agrupacion}</td>
+                              <td style={{ fontSize: '0.85rem' }}>{est.seccion}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button 
+                                  onClick={() => updateEstructura(editingMemberData.id, est.id, { activo: !est.activo })}
+                                  className={`btn-status ${est.activo ? 'active' : ''}`}
+                                  style={{ padding: '0.3rem', minWidth: '2rem', fontSize: '0.8rem' }}
+                                >
+                                  {est.activo ? "✓" : "🚫"}
+                                </button>
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  defaultValue={est.atril || ""}
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (est.atril?.toString() || "")) {
+                                      updateEstructura(editingMemberData.id, est.id, { atril: e.target.value });
+                                    }
+                                  }}
+                                  style={{ width: '60px', padding: '0.4rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                                />
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Sin perfiles registrados en DB</td></tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
 
-                  <div className="modal-permissions-summary" style={{ marginTop: '2rem', padding: '1.2rem', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #eee' }}>
-                    <p style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Gestión de Accesos:</p>
-                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <button
-                          onClick={() => {
-                             toggleMasterStatus(editingMemberData.id, editingMemberData.isMaster);
-                             setEditingMemberData({...editingMemberData, isMaster: !editingMemberData.isMaster});
-                          }}
-                          className={`btn-status ${editingMemberData.isMaster ? 'active' : ''}`}
-                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
-                        >
-                          {editingMemberData.isMaster ? "✓" : "🚫"}
-                        </button>
-                        <div>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Master</span>
-                          <span style={{ fontSize: '0.75rem', color: '#666' }}>Acceso total</span>
-                        </div>
+                  {!editingMemberData.isExternal && (
+                    <>
+                      <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Permisos de Acceso a Partituras (Clerk)</h3>
+                      <div className="role-selector-grid">
+                        {[...predefinedTags]
+                          .filter(r => !r.includes("- Tutti")) // Ocultar Tutti en edición de miembros
+                          .sort((a,b) => a.localeCompare(b))
+                          .map(r => (
+                            <label key={r} className={`role-chip-card ${selectedMemberTags.includes(r) ? 'selected' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedMemberTags.includes(r)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMemberTags([...selectedMemberTags, r]);
+                                } else {
+                                  setSelectedMemberTags(selectedMemberTags.filter(sr => sr !== r));
+                                }
+                              }}
+                              style={{ display: 'none' }}
+                            />
+                            <span className="chip-check">{selectedMemberTags.includes(r) ? '✓' : '+'}</span>
+                            <span className="chip-text">{r}</span>
+                          </label>
+                        ))}
                       </div>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <button
-                          onClick={() => {
-                            toggleArchiverStatus(editingMemberData.id, editingMemberData.isArchiver);
-                            setEditingMemberData({...editingMemberData, isArchiver: !editingMemberData.isArchiver});
-                          }}
-                          className={`btn-status ${editingMemberData.isArchiver ? 'active' : ''}`}
-                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
-                        >
-                          {editingMemberData.isArchiver ? "✓" : "🚫"}
-                        </button>
-                        <div>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Archivero</span>
-                          <span style={{ fontSize: '0.75rem', color: '#666' }}>Gestión doc.</span>
-                        </div>
-                      </div>
+                    </>
+                  )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <button
-                          onClick={() => {
-                            toggleBanStatus(editingMemberData.id, editingMemberData.isBanned);
-                            setEditingMemberData({...editingMemberData, isBanned: !editingMemberData.isBanned});
-                          }}
-                          className={`btn-status ${editingMemberData.isBanned ? 'banned' : 'active'}`}
-                          style={{ padding: '0.6rem', fontSize: '1.1rem' }}
-                        >
-                          {editingMemberData.isBanned ? "🚫" : "✓"}
-                        </button>
-                        <div>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Estado</span>
-                          <span style={{ fontSize: '0.75rem', color: '#666' }}>{editingMemberData.isBanned ? 'Baneado' : 'Activo'}</span>
+                  {!editingMemberData.isExternal && (
+                    <div className="modal-permissions-summary" style={{ marginTop: '2rem', padding: '1.2rem', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #eee' }}>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Gestión de Accesos:</p>
+                      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <button
+                            onClick={() => {
+                               toggleMasterStatus(editingMemberData.id, editingMemberData.isMaster);
+                               // No actualizamos localmente aquí porque toggleMasterStatus 
+                               // puede abrir el modal de activation y no queremos estado inconsistente
+                            }}
+                            className={`btn-status ${editingMemberData.isMaster ? 'active' : ''}`}
+                            style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                          >
+                            {editingMemberData.isMaster ? "✓" : "🚫"}
+                          </button>
+                          <div>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Master</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Acceso total</span>
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <button
+                            onClick={() => {
+                              toggleArchiverStatus(editingMemberData.id, editingMemberData.isArchiver);
+                            }}
+                            className={`btn-status ${editingMemberData.isArchiver ? 'active' : ''}`}
+                            style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                          >
+                            {editingMemberData.isArchiver ? "✓" : "🚫"}
+                          </button>
+                          <div>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Archivero</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Gestión doc.</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <button
+                            onClick={() => {
+                              toggleBanStatus(editingMemberData.id, editingMemberData.isBanned);
+                              // Cerramos el modal de edición para evitar confusión si se activa el flujo de ban/unban masivo
+                              setEditingMemberData(null);
+                            }}
+                            className={`btn-status ${editingMemberData.isBanned ? 'banned' : 'active'}`}
+                            style={{ padding: '0.6rem', fontSize: '1.1rem' }}
+                          >
+                            {editingMemberData.isBanned ? "🚫" : "✓"}
+                          </button>
+                          <div>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Estado</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>{editingMemberData.isBanned ? 'Baneado' : 'Activo'}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="modal-footer">
                   <button onClick={() => setEditingMemberData(null)} className="btn-cancel">Cancelar</button>
                   <button onClick={() => {
-                    updateMemberRoles(editingMemberData.id);
+                    if (!editingMemberData.isExternal) {
+                      updateMemberRoles(editingMemberData.id);
+                    }
                     setEditingMemberData(null);
                   }} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Activación de Acceso (Upgrade) */}
+          {upgradingMember && (
+            <div className="admin-modal-overlay">
+              <div className="admin-modal-card" style={{ maxWidth: '450px' }}>
+                <div className="modal-header">
+                  <div>
+                    <h2 style={{ fontSize: '1.2rem' }}>⚠️ Activación de Acceso</h2>
+                    <p style={{ fontSize: '0.8rem' }}>"{upgradingMember.name}" no tiene cuenta en la plataforma.</p>
+                  </div>
+                  <button onClick={() => setUpgradingMember(null)} className="btn-close-modal">✕</button>
+                </div>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#666', lineHeight: '1.4' }}>
+                    Para dar permisos de <strong>{upgradingMember.targetRole === 'master' ? 'Master' : 'Archivero'}</strong>, primero es necesario crear una sesión de usuario oficial.
+                  </p>
+                  
+                  <div className="manual-form-grid">
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Email del usuario</label>
+                    <input 
+                      type="email" 
+                      value={upgradeData.email} 
+                      onChange={(e) => setUpgradeData({...upgradeData, email: e.target.value})} 
+                      placeholder="ejemplo@correo.com"
+                      style={{ marginBottom: '1rem' }}
+                    />
+
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Nombre de Usuario</label>
+                    <input 
+                      type="text" 
+                      value={upgradeData.username} 
+                      onChange={(e) => setUpgradeData({...upgradeData, username: e.target.value})} 
+                      placeholder="usuario_ocgc"
+                      style={{ marginBottom: '1rem' }}
+                    />
+
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Contraseña Temporal</label>
+                    <input 
+                      type="password" 
+                      value={upgradeData.password} 
+                      onChange={(e) => setUpgradeData({...upgradeData, password: e.target.value})} 
+                      placeholder="Min. 8 caracteres"
+                    />
+                  </div>
+
+                  <div style={{ padding: '1rem', background: '#fff9db', borderRadius: '10px', fontSize: '0.8rem', color: '#856404', border: '1px solid #ffeeba', marginTop: '0.5rem' }}>
+                    💡 Tras activar el acceso, el usuario podrá entrar y cambiar su contraseña.
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button onClick={() => setUpgradingMember(null)} className="btn-cancel">Cancelar</button>
+                  <button 
+                    onClick={upgradeToPlatform} 
+                    className="btn-save" 
+                    disabled={isUpgrading}
+                  >
+                    {isUpgrading ? "Activando..." : "Activar y Dar Permiso"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Creación Manual de Usuario */}
+          {isManualCreateOpen && (
+            <div className="admin-modal-overlay">
+              <div className="admin-modal-card" style={{ maxWidth: '800px' }}>
+                <div className="modal-header">
+                  <div>
+                    <h2>Crear Usuario Manualmente</h2>
+                    <p>Ideal para administradores, archiveros o músicos que no pueden usar el enlace.</p>
+                  </div>
+                  <button onClick={() => setIsManualCreateOpen(false)} className="btn-close-modal">✕</button>
+                </div>
+                
+                <div className="modal-body">
+                  <div className="manual-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem', marginBottom: '2rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Nombre de pila *</label>
+                      <input type="text" value={manualUser.firstName} onChange={(e) => setManualUser({...manualUser, firstName: e.target.value})} placeholder="Ej: Juan" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Apellidos</label>
+                      <input type="text" value={manualUser.surname} onChange={(e) => setManualUser({...manualUser, surname: e.target.value})} placeholder="Ej: Pérez García" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Email {manualUser.isExternal ? '(Opcional)' : '*'}</label>
+                      <input type="email" value={manualUser.email} onChange={(e) => setManualUser({...manualUser, email: e.target.value})} placeholder="ejemplo@correo.com" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>DNI / NIE *</label>
+                      <input type="text" value={manualUser.dni} onChange={(e) => setManualUser({...manualUser, dni: e.target.value})} placeholder="12345678X" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Matrícula de Coche (Opcional)</label>
+                      <input type="text" value={manualUser.matricula} onChange={(e) => setManualUser({...manualUser, matricula: e.target.value})} placeholder="Ej: 1234 ABC" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Teléfono</label>
+                      <input type="text" value={manualUser.phone} onChange={(e) => setManualUser({...manualUser, phone: e.target.value})} placeholder="+34 600 000 000" />
+                    </div>
+                    <div style={{ opacity: manualUser.isExternal ? 0.5 : 1 }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Nombre de Usuario *</label>
+                      <input type="text" value={manualUser.username} onChange={(e) => setManualUser({...manualUser, username: e.target.value})} placeholder="usuario_ocgc" disabled={manualUser.isExternal} />
+                    </div>
+                    <div style={{ opacity: manualUser.isExternal ? 0.5 : 1 }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', marginBottom: '0.4rem', display: 'block' }}>Contraseña *</label>
+                      <input type="text" value={manualUser.password} onChange={(e) => setManualUser({...manualUser, password: e.target.value})} placeholder="Mínimo 8 caract." disabled={manualUser.isExternal} />
+                    </div>
+                  </div>
+
+                  <div className="permissions-section" style={{ background: '#f8f9fa', padding: '1.2rem', borderRadius: '10px', marginBottom: '2rem', border: '1px solid #eee' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--clr-navy)' }}>Configuración de Acceso y Permisos</h4>
+                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, color: manualUser.isExternal ? 'var(--clr-primary)' : '#666' }}>
+                        <input type="checkbox" checked={manualUser.isExternal} onChange={(e) => setManualUser({...manualUser, isExternal: e.target.checked, username: '', password: '', isMaster: false, isArchiver: false})} />
+                        🚫 Externo (Sin acceso al sistema)
+                      </label>
+                      {!manualUser.isExternal && (
+                        <>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                            <input type="checkbox" checked={manualUser.isMaster} onChange={(e) => setManualUser({...manualUser, isMaster: e.target.checked})} />
+                            Administrador (Master)
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                            <input type="checkbox" checked={manualUser.isArchiver} onChange={(e) => setManualUser({...manualUser, isArchiver: e.target.checked})} />
+                            Archivero
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="artistic-profiles-section">
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--clr-navy)' }}>Perfiles Artísticos (Si es músico)</h4>
+                    {manualUser.artisticProfiles.map((profile, index) => (
+                      <div key={index} className="invite-row-grid" style={{ marginBottom: '0.8rem' }}>
+                        <select 
+                          value={profile.papel} 
+                          onChange={(e) => {
+                            const newProfiles = [...manualUser.artisticProfiles];
+                            newProfiles[index].papel = e.target.value;
+                            setManualUser({...manualUser, artisticProfiles: newProfiles});
+                          }}
+                        >
+                          <option value="">-- Papel --</option>
+                          {papeles.map(p => <option key={p.id} value={p.papel}>{p.papel}</option>)}
+                        </select>
+                        <select 
+                          value={profile.agrupacion} 
+                          onChange={(e) => {
+                            const newProfiles = [...manualUser.artisticProfiles];
+                            newProfiles[index].agrupacion = e.target.value;
+                            setManualUser({...manualUser, artisticProfiles: newProfiles});
+                          }}
+                        >
+                          <option value="">-- Agrupación --</option>
+                          {agrupaciones.map(a => <option key={a.id} value={a.agrupacion}>{a.agrupacion}</option>)}
+                        </select>
+                        <select 
+                          value={profile.seccion} 
+                          onChange={(e) => {
+                            const newProfiles = [...manualUser.artisticProfiles];
+                            newProfiles[index].seccion = e.target.value;
+                            setManualUser({...manualUser, artisticProfiles: newProfiles});
+                          }}
+                        >
+                          <option value="">-- Sección --</option>
+                          {[...secciones].sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.seccion}>{s.seccion}</option>)}
+                        </select>
+                        {manualUser.artisticProfiles.length > 1 && (
+                          <button onClick={() => {
+                            const newProfiles = manualUser.artisticProfiles.filter((_, i) => i !== index);
+                            setManualUser({...manualUser, artisticProfiles: newProfiles});
+                          }} style={{ background: '#ff4757', color: 'white', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer' }}>✕</button>
+                        )}
+                      </div>
+                    ))}
+                    <button 
+                      onClick={() => setManualUser({...manualUser, artisticProfiles: [...manualUser.artisticProfiles, { agrupacion: '', seccion: '', papel: 'Músico' }]})}
+                      style={{ background: '#eee', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Añadir otra agrupación
+                    </button>
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button onClick={() => setIsManualCreateOpen(false)} className="btn-cancel">Cancelar</button>
+                  <button 
+                    onClick={createManualUser} 
+                    className="btn-save" 
+                    style={{ padding: '0.8rem 2rem' }}
+                    disabled={isCreatingManual}
+                  >
+                    {isCreatingManual ? "Creando..." : "Crear Usuario"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1329,6 +1928,32 @@ export default function AdminOCGCPartituras() {
         .btn-save:hover { background: #C8E6C9; }
         .btn-cancel:hover { background: #E0E0E0; }
 
+        /* Estilos para gestión de catálogos */
+        .catalog-scroll-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .catalog-item-row { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          padding: 0.6rem 0.8rem; 
+          background: #fff; 
+          border: 1px solid #eee; 
+          border-radius: 8px; 
+          font-size: 0.85rem; 
+          transition: all 0.2s;
+        }
+        .catalog-item-row:hover { background: #fdfdfd; border-color: #ddd; }
+        .btn-delete-small {
+          background: none;
+          border: none;
+          color: #e74c3c;
+          font-size: 1.2rem;
+          cursor: pointer;
+          line-height: 1;
+          padding: 0 0.3rem;
+          border-radius: 4px;
+        }
+        .btn-delete-small:hover { background: #fde8e8; }
+
         /* Invitaciones Inline Styles */
         .invitation-generation-box {
           background: #f8f9fa;
@@ -1374,8 +1999,9 @@ export default function AdminOCGCPartituras() {
         
         .invite-row-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr 1fr 1fr auto;
           gap: 1rem;
+          align-items: end;
         }
         .invitation-section {
           border-top: 1px solid #f0f0f0;
@@ -1528,41 +2154,68 @@ export default function AdminOCGCPartituras() {
           border-bottom: 1px solid #f0f0f0;
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          background: #fafbfc;
+          align-items: flex-start;
+          background: #fbfcfe;
         }
-        .modal-header h2 { margin: 0; font-size: 1.4rem; color: var(--clr-navy); }
-        .modal-header p { margin: 0.2rem 0 0; font-size: 0.9rem; color: var(--clr-text-muted); }
-        
-        .btn-close-modal {
-          background: #f0f2f5;
-          border: none;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.2rem;
-          cursor: pointer;
-          transition: 0.2s;
-        }
-        .btn-close-modal:hover { background: #e4e6e9; color: var(--clr-danger); }
+        .modal-header h2 { margin: 0; font-size: 1.4rem; color: var(--clr-navy); font-weight: 800; }
+        .modal-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: #7f8c8d; }
+        .modal-body { padding: 2rem; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 1.2rem 2rem; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 1rem; background: #fbfcfe; }
+        .btn-close-modal { background: none; border: none; font-size: 1.5rem; color: #ccc; cursor: pointer; transition: 0.2s; }
+        .btn-close-modal:hover { color: #333; transform: rotate(90deg); }
 
-        .modal-body {
-          padding: 2rem;
-          overflow-y: auto;
-          flex: 1;
+        .manual-form-grid input {
+          width: 100%;
+          padding: 0.8rem 1rem;
+          border: 1px solid #e1e8ed;
+          border-radius: 10px;
+          font-size: 0.9rem;
+          background: #fff;
+          transition: all 0.2s;
+        }
+        .manual-form-grid input:focus {
+          border-color: var(--clr-primary);
+          box-shadow: 0 0 0 3px rgba(71, 138, 201, 0.1);
+          outline: none;
+        }
+        .artistic-profiles-section select {
+          padding: 0.8rem;
+          border: 1px solid #e1e8ed;
+          border-radius: 10px;
+          font-size: 0.9rem;
+          background: #fff;
+          width: 100%;
+          margin-bottom: 0.5rem;
         }
 
-        .modal-footer {
+        .modal-header {
           padding: 1.5rem 2rem;
-          border-top: 1px solid #f0f0f0;
+          border-bottom: 1px solid #f0f0f0;
           display: flex;
-          justify-content: flex-end;
-          gap: 1rem;
-          background: #f9fafb;
+          justify-content: space-between;
+          align-items: flex-start;
+          background: #fbfcfe;
         }
+        .modal-header h2 { margin: 0; font-size: 1.4rem; color: var(--clr-navy); font-weight: 800; }
+        .modal-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: #7f8c8d; }
+        .modal-body { padding: 2rem; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 1.2rem 2rem; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 1rem; background: #fbfcfe; }
+        
+        .btn-close-modal { 
+          background: #f0f2f5; 
+          border: none; 
+          width: 36px; 
+          height: 36px; 
+          border-radius: 50%; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          font-size: 1.2rem; 
+          color: #666; 
+          cursor: pointer; 
+          transition: 0.2s; 
+        }
+        .btn-close-modal:hover { background: #e4e6e9; color: var(--clr-danger); transform: rotate(90deg); }
 
         .table-scroll { overflow-x: auto; }
         .personal-legend { margin-top: 2rem; padding: 1.5rem; background: #f0f8ff; border-radius: 8px; border-left: 4px solid #478AC9; }

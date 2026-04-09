@@ -3,14 +3,17 @@ const prisma = new PrismaClient();
 
 const DATOS_PREDETERMINADOS = {
   agrupaciones: [
-    "Orquesta Comunitaria Gran Canaria",
-    "Coro Comunitario Gran Canaria",
+    "Orquesta",
+    "Coro",
     "Ensemble de Flautas",
     "Ensemble de Metales",
     "Ensemble de Chelos",
-    "OCGC Big Band"
+    "Big Band",
+    "Invitados",
+    "Colaboradores",
+    "Empresa Externa"
   ],
-  papeles: ["Músico", "Director", "Archivero", "Solista"],
+  papeles: ["Músico", "Director", "Archivero", "Invitado", "Colaborador", "Empresa Externa"],
   instrumentos: {
     "Cuerda": ["Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo", "Arpa", "Piano"],
     "Viento Madera": ["Flauta", "Oboe", "Clarinete", "Fagot"],
@@ -32,7 +35,16 @@ const DATOS_PREDETERMINADOS = {
       "General Ensemble Chelos",
       "General Big Band"
     ]
-  }
+  },
+  secciones: [
+    "Alto (coro)", "Bajo (coro)", "Dirección musical (Coro)", "Soprano (coro)", "Tenor (coro)",
+    "Violonchelo", "Dirección musical (Ensemble Flautas)", "Flauta", "Bombardino", "Percusión",
+    "Trombón", "Trompa", "Trompeta", "Tuba", "Arpa", "Clarinete", "Contrabajo", 
+    "Dirección artística y musical (OCGC y Orquesta)", "Fagot", "Oboe", "Órgano", "Piano", 
+    "Viola", "Violín primero", "Violín segundo", "Invitados", "Dirección musical (Ensemble Metales)",
+    "Colaboradores", "Productora Pedro Ruiz", "Técnico Sonido", "Transportes", "Rider Service",
+    "LF Sound", "Solista", "Técnico Sala"
+  ]
 };
 
 async function main() {
@@ -41,11 +53,12 @@ async function main() {
   // Borrar en orden para respetar claves foráneas
   await prisma.estructura.deleteMany({});
   await prisma.matricula.deleteMany({});
-  await prisma.user.deleteMany({});
+  //await prisma.user.deleteMany({});
   await prisma.residencia.deleteMany({});
   await prisma.empleo.deleteMany({});
   await prisma.score.deleteMany({});
   await prisma.category.deleteMany({});
+  await prisma.instrumento.deleteMany({});
   await prisma.seccion.deleteMany({});
   await prisma.agrupacion.deleteMany({});
   await prisma.papel.deleteMany({});
@@ -67,15 +80,23 @@ async function main() {
   }
   console.log("- Papeles creados.");
 
-  // 3. Instrumentos (Secciones) con Familia
+  // 3. Diccionario de Instrumentos (Etiquetas)
   for (const [familia, nombres] of Object.entries(DATOS_PREDETERMINADOS.instrumentos)) {
     for (const nombre of nombres) {
-      await prisma.seccion.create({
-        data: { seccion: nombre, familia: familia }
+      await prisma.instrumento.create({
+        data: { nombre, familia }
       });
     }
   }
-  console.log("- Instrumentos y familias creados.");
+  console.log("- Diccionario de etiquetas (Instrumentos) creado.");
+
+  // 4. Secciones Artísticas (Estructura)
+  for (const s of DATOS_PREDETERMINADOS.secciones) {
+    await prisma.seccion.create({
+      data: { seccion: s }
+    });
+  }
+  console.log("- Secciones artísticas creadas.");
   
   // 4. Habilitar RLS en todas las tablas (Mandatorio por política OCGC)
   console.log("🔒 ACTIVANDO ROW LEVEL SECURITY (RLS)...");

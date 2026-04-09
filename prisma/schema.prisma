@@ -31,14 +31,22 @@ model Category {
 }
 
 // =============================================
-// TABLA UNIFICADA: Secciones/Instrumentos
-// Fusiona las antiguas tablas Role y Seccion
+// DICCIONARIO DINÁMICO DE ETIQUETAS (Instrumentos)
+// =============================================
+
+model Instrumento {
+  id      Int    @id @default(autoincrement())
+  nombre  String @unique
+  familia String @default("Otros")
+}
+
+// =============================================
+// TABLA DE SECCIONES (Estructuras Artísticas)
 // =============================================
 
 model Seccion {
   id          Int          @id @default(autoincrement())
   seccion     String       @unique
-  familia     String?      @default("Otros")
   estructuras Estructura[]
 }
 
@@ -68,6 +76,8 @@ model User {
   empleoId      Int?
   empleo        Empleo?      @relation(fields: [empleoId], references: [id])
 
+  isActive      Boolean      @default(true)
+  isExternal    Boolean      @default(false)
   estructuras   Estructura[]
   matriculas    Matricula[]
 }
