@@ -281,6 +281,10 @@ export default function AdminOCGCPartituras() {
       } else if (activeTab === null) {
         setActiveTab(isMaster ? 'dashboard' : 'scores');
       }
+      // Cargar solicitudes al montar para mostrar badge aunque no se abra la pestaña
+      if (isMaster && !isJoinRequestsLoaded) {
+        loadMembers();
+      }
     }
   }, [isLoaded, isMaster, isArchiver, user, activeTab]);
 
@@ -739,12 +743,9 @@ export default function AdminOCGCPartituras() {
 
         <nav className="admin-nav-pills">
           <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>Dashboard</button>
-          <button onClick={() => setActiveTab('scores')} className={activeTab === 'scores' ? 'active' : ''}>Partituras</button>
-          <button onClick={() => setActiveTab('categories')} className={activeTab === 'categories' ? 'active' : ''}>Programas</button>
-          <button onClick={() => setActiveTab('roles')} className={activeTab === 'roles' ? 'active' : ''}>Etiquetas</button>
-          <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'active' : ''}>Calendario</button>
           {isMaster && (
             <>
+              <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'active' : ''}>Usuarios</button>
               <button 
                 onClick={() => setActiveTab('requests')} 
                 className={activeTab === 'requests' ? 'active' : ''}
@@ -757,10 +758,17 @@ export default function AdminOCGCPartituras() {
                   </span>
                 )}
               </button>
-              <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'active' : ''}>Personal</button>
-              <button onClick={() => setActiveTab('sections')} className={activeTab === 'sections' ? 'active' : ''}>Catálogos</button>
-              <button onClick={() => setActiveTab('logs')} className={activeTab === 'logs' ? 'active' : ''}>Logs</button>
             </>
+          )}
+          <button onClick={() => setActiveTab('scores')} className={activeTab === 'scores' ? 'active' : ''}>Partituras</button>
+          <button onClick={() => setActiveTab('roles')} className={activeTab === 'roles' ? 'active' : ''}>Etiquetas</button>
+          {isMaster && (
+            <button onClick={() => setActiveTab('sections')} className={activeTab === 'sections' ? 'active' : ''}>Estructura</button>
+          )}
+          <button onClick={() => setActiveTab('categories')} className={activeTab === 'categories' ? 'active' : ''}>Programas</button>
+          <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'active' : ''}>Calendario</button>
+          {isMaster && (
+            <button onClick={() => setActiveTab('logs')} className={activeTab === 'logs' ? 'active' : ''}>Logs</button>
           )}
         </nav>
       </div>

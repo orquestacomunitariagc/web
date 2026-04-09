@@ -29,16 +29,7 @@ model Category {
   name      String    @unique
   eventDate DateTime?
   scores    Score[]
-}
-
-// =============================================
-// DICCIONARIO DINÁMICO DE ETIQUETAS (Instrumentos)
-// =============================================
-
-model Instrumento {
-  id      Int    @id @default(autoincrement())
-  nombre  String @unique
-  familia String @default("Otros")
+  events    Event[]
 }
 
 // =============================================
@@ -46,9 +37,11 @@ model Instrumento {
 // =============================================
 
 model Seccion {
-  id          Int          @id @default(autoincrement())
-  seccion     String       @unique
-  estructuras Estructura[]
+  id               Int          @id @default(autoincrement())
+  seccion          String       @unique
+  familia          String       @default("Otros")
+  isVisibleInPublic Boolean     @default(true)
+  estructuras      Estructura[]
 }
 
 model SystemConfig {
@@ -131,15 +124,18 @@ model Matricula {
 // =============================================
 
 model Agrupacion {
-  id          Int          @id @default(autoincrement())
-  agrupacion  String       @unique
-  estructuras Estructura[]
+  id               Int          @id @default(autoincrement())
+  agrupacion       String       @unique
+  isVisibleInPublic Boolean     @default(true)
+  estructuras      Estructura[]
 }
 
 model Papel {
-  id          Int          @id @default(autoincrement())
-  papel       String       @unique
-  estructuras Estructura[]
+  id               Int          @id @default(autoincrement())
+  papel            String       @unique
+  isVisibleInPublic Boolean     @default(true)
+  isDirector       Boolean      @default(false)
+  estructuras      Estructura[]
 }
 
 model InvitationCode {
@@ -173,10 +169,13 @@ model Event {
   location    String?
   description String?
   type        EventType @default(Ensayo)
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
 
   @@index([date])
   @@index([type, date])
+  @@index([categoryId])
 }
 
 model ActivityLog {

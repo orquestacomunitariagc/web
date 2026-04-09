@@ -51,7 +51,7 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { title, date, location, description, type } = body;
+    const { title, date, location, description, type, categoryId } = body;
 
     const updated = await prisma.event.update({
       where: { id: eventId },
@@ -60,8 +60,10 @@ export async function PATCH(
         date: date ? new Date(date) : undefined,
         location,
         description,
-        type: type as EventType
-      }
+        type: type as EventType,
+        categoryId: categoryId !== undefined ? (categoryId ? parseInt(categoryId) : null) : undefined,
+      },
+      include: { category: { select: { id: true, name: true } } }
     });
 
     await logActivity("Evento Reprogramado/Editado", clerkId, { 

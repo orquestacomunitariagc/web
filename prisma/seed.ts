@@ -7,62 +7,65 @@ async function main() {
 
   // ── Agrupaciones ──
   const agrupaciones = [
-    "Orquesta",
-    "Coro",
-    "Ensemble Flautas",
-    "Ensemble Metales",
-    "Ensemble Chelos",
-    "Big Band",
-    "Colaboradores",
-    "Invitados"
+    "Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos", "Big Band",
+    "Colaboradores", "Invitados", "Empresa Externa"
   ];
   for (const name of agrupaciones) {
+    const isPublic = !["Colaboradores", "Invitados", "Empresa Externa"].includes(name);
     await prisma.agrupacion.upsert({
       where: { agrupacion: name },
-      create: { agrupacion: name },
-      update: {},
+      create: { agrupacion: name, isVisibleInPublic: isPublic },
+      update: { isVisibleInPublic: isPublic },
     });
   }
   console.log(`  ✓ ${agrupaciones.length} agrupaciones`);
 
   // ── Papeles ──
-  const papeles = ["Músico", "Director", "Archivero", "Solista", "Invitado", "Colaborador"];
+  const papeles = ["Músico", "Director", "Archivero", "Solista", "Invitado", "Colaborador", "Empresa Externa"];
   for (const name of papeles) {
+    const isPublic = !["Director", "Archivero", "Invitado", "Colaborador", "Empresa Externa"].includes(name);
+    const isDirector = name === "Director";
     await prisma.papel.upsert({
       where: { papel: name },
-      create: { papel: name },
-      update: {},
+      create: { papel: name, isVisibleInPublic: isPublic, isDirector },
+      update: { isVisibleInPublic: isPublic, isDirector },
     });
   }
   console.log(`  ✓ ${papeles.length} papeles`);
 
-  // ── Secciones (Instrumentos) ──
-  const instrumentos = [
-    "Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo", "Arpa", "Piano", "Órgano",
-    "Flauta", "Oboe", "Clarinete", "Fagot", "Requinto", "Contrafagot", "Saxofón",
-    "Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino",
-    "Percusión",
-    "Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)", "Coach vocal",
-    "Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti",
-    "Dirección artística y musical (OCGC y Orquesta)",
-    "Dirección musical (Ensemble Flautas)",
-    "Dirección musical (Ensemble Metales)",
-    "Dirección musical (Ensemble Violonchelos)",
-    "Dirección musical (Coro)",
-    "General Orquesta", "General Coro", "General Ensemble Flautas",
-    "General Ensemble Metales", "General Ensemble Chelos", "General Big Band"
-  ];
+  // ── Secciones (Estructura y Etiquetas) ──
+  const instrumentosDict: Record<string, string[]> = {
+    "Cuerda": ["Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo", "Arpa", "Piano"],
+    "Viento Madera": ["Flauta", "Oboe", "Clarinete", "Fagot"],
+    "Viento Metal": ["Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino"],
+    "Coro": ["Soprano (coro)", "Alto (coro)", "Tenor (coro)", "Bajo (coro)"],
+    "Tuttis": ["Orquesta - Tutti", "Coro - Tutti", "Ensemble Flautas - Tutti", "Ensemble Metales - Tutti", "Ensemble Chelos - Tutti", "Big Band - Tutti"],
+    "Dirección": [
+      "Dirección artística y musical (OCGC y Orquesta)", 
+      "Dirección musical (Ensemble Flautas)", 
+      "Dirección musical (Ensemble Metales)", 
+      "Dirección musical (Ensemble Violonchelos)", 
+      "Dirección musical (Coro)"
+    ],
+    "Generales": [
+      "General Orquesta", "General Coro", "General Ensemble Flautas", "General Ensemble Metales", "General Ensemble Chelos", "General Big Band"
+    ],
+    "Otros": ["Invitados", "Colaboradores", "Productora Pedro Ruiz", "Técnico Sonido", "Transportes", "Rider Service", "LF Sound", "Solista", "Técnico Sala"]
+  };
 
   let seccionCount = 0;
-  for (const nombre of instrumentos) {
-    await prisma.seccion.upsert({
-      where: { seccion: nombre },
-      update: {},
-      create: { seccion: nombre }
-    });
-    seccionCount++;
+  for (const [familia, nombres] of Object.entries(instrumentosDict)) {
+    const isPublic = !["Dirección", "Generales", "Tuttis", "Otros"].includes(familia);
+    for (const nombre of nombres) {
+      await prisma.seccion.upsert({
+        where: { seccion: nombre },
+        update: { familia: familia, isVisibleInPublic: isPublic },
+        create: { seccion: nombre, familia: familia, isVisibleInPublic: isPublic }
+      });
+      seccionCount++;
+    }
   }
-  console.log(`  ✓ ${seccionCount} secciones`);
+  console.log(`  ✓ ${seccionCount} secciones fusionadas`);
 
   console.log("✅ Seed completado");
 }

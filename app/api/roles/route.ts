@@ -3,24 +3,25 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/logger";
 
-// GET devuelve el diccionario de etiquetas (instrumentos) agrupado por familia
+// GET devuelve el diccionario de secciones agrupado por familia
 export async function GET() {
   try {
-    const instrumentos = await prisma.instrumento.findMany({
+    const secciones = await prisma.seccion.findMany({
       orderBy: [
         { familia: 'asc' },
-        { nombre: 'asc' }
+        { seccion: 'asc' }
       ]
     });
     
-    // Agrupar exclusivamente los instrumentos/etiquetas para el sistema de partituras
-    const grouped = instrumentos.reduce((acc: Record<string, any[]>, curr) => {
+    // Agrupar exclusivamente las secciones para el sistema de partituras (y formularios)
+    const grouped = secciones.reduce((acc: Record<string, any[]>, curr) => {
       const fam = curr.familia || "Otros";
       if (!acc[fam]) acc[fam] = [];
       acc[fam].push({ 
         id: curr.id, 
-        name: curr.nombre, 
-        type: 'tag' // Marcador explícito de que es una etiqueta de partitura
+        name: curr.seccion, 
+        type: 'tag', // Marcador explícito
+        isVisible: curr.isVisibleInPublic
       });
       return acc;
     }, {});
@@ -40,22 +41,23 @@ export async function POST(req: Request) {
   const isMaster = !!user?.publicMetadata?.isMaster;
   if (!isMaster) return new NextResponse("Forbidden", { status: 403 });
 
-  const { name, familia } = await req.json();
+  const { name, familia, isVisibleInPublic } = await req.json();
 
   try {
-    const newInstrumento = await prisma.instrumento.create({
+    const newSeccion = await prisma.seccion.create({
       data: { 
-        nombre: name,
-        familia: familia || "Otros"
+        seccion: name,
+        familia: familia || "Otros",
+        isVisibleInPublic: isVisibleInPublic !== undefined ? isVisibleInPublic : true
       }
     });
 
-    await logActivity("Etiqueta Creada (Partituras)", clerkId, { 
+    await logActivity("Sección Creada", clerkId, { 
       nombre: name, 
       familia: familia || "Otros" 
     });
 
-    return NextResponse.json({ id: newInstrumento.id, name: newInstrumento.nombre, familia: newInstrumento.familia });
+    return NextResponse.json({ id: newSeccion.id, name: newSeccion.seccion, familia: newSeccion.familia, isVisibleInPublic: newSeccion.isVisibleInPublic });
   } catch (error) {
     console.error("Error creating tag:", error);
     return new NextResponse("Error creating tag", { status: 500 });
@@ -76,12 +78,12 @@ export async function DELETE(req: Request) {
   const id = parseInt(idStr);
 
   try {
-    const instrumento = await prisma.instrumento.findUnique({ where: { id } });
-    await prisma.instrumento.delete({ where: { id } });
+    const seccionDB = await prisma.seccion.findUnique({ where: { id } });
+    await prisma.seccion.delete({ where: { id } });
 
-    await logActivity("Etiqueta Eliminada (Partituras)", clerkId, { 
+    await logActivity("Sección Eliminada", clerkId, { 
       id, 
-      nombre: instrumento?.nombre || "Desconocido" 
+      nombre: seccionDB?.seccion || "Desconocida" 
     });
 
     return NextResponse.json({ success: true });

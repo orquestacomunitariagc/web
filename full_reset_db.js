@@ -58,7 +58,6 @@ async function main() {
   await prisma.empleo.deleteMany({});
   await prisma.score.deleteMany({});
   await prisma.category.deleteMany({});
-  await prisma.instrumento.deleteMany({});
   await prisma.seccion.deleteMany({});
   await prisma.agrupacion.deleteMany({});
   await prisma.papel.deleteMany({});
@@ -70,33 +69,39 @@ async function main() {
 
   // 1. Agrupaciones
   for (const ag of DATOS_PREDETERMINADOS.agrupaciones) {
-    await prisma.agrupacion.create({ data: { agrupacion: ag } });
+    const isPublic = !["Invitados", "Colaboradores", "Empresa Externa"].includes(ag);
+    await prisma.agrupacion.create({ data: { agrupacion: ag, isVisibleInPublic: isPublic } });
   }
   console.log("- Agrupaciones creadas.");
 
   // 2. Papeles
   for (const p of DATOS_PREDETERMINADOS.papeles) {
-    await prisma.papel.create({ data: { papel: p } });
+    const isPublic = !["Director", "Archivero", "Invitado", "Colaborador", "Empresa Externa"].includes(p);
+    const isDirector = p === "Director";
+    await prisma.papel.create({ data: { papel: p, isVisibleInPublic: isPublic, isDirector } });
   }
   console.log("- Papeles creados.");
 
-  // 3. Diccionario de Instrumentos (Etiquetas)
+  // 3. Secciones Artísticas (Estructura y Etiquetas fusionados)
   for (const [familia, nombres] of Object.entries(DATOS_PREDETERMINADOS.instrumentos)) {
+    const isPublic = !["Dirección", "Generales", "Tuttis"].includes(familia); // Ocultar familias internas
     for (const nombre of nombres) {
-      await prisma.instrumento.create({
-        data: { nombre, familia }
+      await prisma.seccion.create({
+        data: { seccion: nombre, familia, isVisibleInPublic: isPublic }
       });
     }
   }
-  console.log("- Diccionario de etiquetas (Instrumentos) creado.");
 
-  // 4. Secciones Artísticas (Estructura)
-  for (const s of DATOS_PREDETERMINADOS.secciones) {
+  // Secciones extra que no estaban en el diccionario anterior
+  const seccionesExtra = DATOS_PREDETERMINADOS.secciones.filter(
+    s => !Object.values(DATOS_PREDETERMINADOS.instrumentos).flat().includes(s)
+  );
+  for (const s of seccionesExtra) {
     await prisma.seccion.create({
-      data: { seccion: s }
+      data: { seccion: s, familia: "Otros", isVisibleInPublic: false }
     });
   }
-  console.log("- Secciones artísticas creadas.");
+  console.log("- Secciones artísticas (con familias) creadas.");
   
   // 4. Habilitar RLS en todas las tablas (Mandatorio por política OCGC)
   console.log("🔒 ACTIVANDO ROW LEVEL SECURITY (RLS)...");

@@ -3,10 +3,14 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/logger";
 
-// GET devuelve todas las secciones artísticas para estructuración
-export async function GET() {
+// GET devuelve todas las secciones artísticas
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const isPublic = searchParams.get("public") === "true";
+
   try {
     const secciones = await prisma.seccion.findMany({
+      where: isPublic ? { isVisibleInPublic: true } : undefined,
       orderBy: { seccion: 'asc' }
     });
     return NextResponse.json(secciones);
@@ -23,11 +27,15 @@ export async function POST(req: Request) {
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
-  const { seccion } = await req.json();
+  const { seccion, familia, isVisibleInPublic } = await req.json();
 
   try {
     const newSeccion = await prisma.seccion.create({
-      data: { seccion }
+      data: { 
+        seccion,
+        familia: familia || "Otros",
+        isVisibleInPublic: isVisibleInPublic !== undefined ? isVisibleInPublic : true
+      }
     });
 
     await logActivity("Sección Artística Creada", clerkId, { seccion });

@@ -9,11 +9,13 @@ export async function GET() {
   if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
   const user = await currentUser();
-  if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
+  if (!user?.publicMetadata?.isMaster && !user?.publicMetadata?.isArchiver)
+    return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const events = await prisma.event.findMany({
-      orderBy: { date: 'asc' }
+      orderBy: { date: 'asc' },
+      include: { category: { select: { id: true, name: true } } }
     });
     return NextResponse.json(events);
   } catch (error) {
@@ -30,28 +32,49 @@ export async function POST(req: Request) {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const { title, date, location, description, type } = await req.json();
+    const body = await req.json();
 
-    const validTypes = ['Ensayo', 'Concierto', 'Reunión'];
-    if (!validTypes.includes(type)) {
-      return new NextResponse("Invalid event type", { status: 400 });
+    // Soporte de importación en lote (array)
+    if (Array.isArray(body)) {
+      const VALID_TYPES = ['Ensayo', 'Concierto', 'Reunión'];
+      const created = await Promise.all(
+        body.map(async (ev: any) => {
+          const type = VALID_TYPES.includes(ev.type) ? ev.type : 'Ensayo';
+          return prisma.event.create({
+            data: {
+              title: ev.title || 'Sin título',
+              date: new Date(ev.date),
+              location: ev.location || null,
+              description: ev.description || null,
+              type: type as EventType,
+              categoryId: ev.categoryId ? parseInt(ev.categoryId) : null,
+            }
+          });
+        })
+      );
+      await logActivity("Importación de Eventos", clerkId, { count: created.length });
+      return NextResponse.json({ imported: created.length });
     }
+
+    // Creación individual
+    const { title, date, location, description, type, categoryId } = body;
+    const VALID_TYPES = ['Ensayo', 'Concierto', 'Reunión'];
+    if (!VALID_TYPES.includes(type)) return new NextResponse("Invalid event type", { status: 400 });
 
     const event = await prisma.event.create({
       data: {
         title,
         date: new Date(date),
-        location,
-        description,
-        type: type as EventType
-      }
+        location: location || null,
+        description: description || null,
+        type: type as EventType,
+        categoryId: categoryId ? parseInt(categoryId) : null,
+      },
+      include: { category: { select: { id: true, name: true } } }
     });
 
-    await logActivity("Evento Programado", clerkId, { 
-      titulo: title, 
-      tipo: type, 
-      fecha: date, 
-      lugar: location || "N/A" 
+    await logActivity("Evento Programado", clerkId, {
+      titulo: title, tipo: type, fecha: date, lugar: location || "N/A"
     });
 
     return NextResponse.json(event);

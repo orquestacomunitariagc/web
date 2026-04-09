@@ -3,8 +3,14 @@ import prisma from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { logActivity } from "@/lib/logger";
 
-export async function GET() {
-  const agrupaciones = await prisma.agrupacion.findMany({ orderBy: { agrupacion: "asc" } });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const isPublic = searchParams.get("public") === "true";
+
+  const agrupaciones = await prisma.agrupacion.findMany({ 
+    where: isPublic ? { isVisibleInPublic: true } : undefined,
+    orderBy: { agrupacion: "asc" } 
+  });
   return NextResponse.json(agrupaciones);
 }
 
@@ -15,12 +21,15 @@ export async function POST(req: Request) {
   const user = await currentUser();
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
-  const { name } = await req.json();
+  const { name, isVisibleInPublic } = await req.json();
   if (!name) return new NextResponse("Name missing", { status: 400 });
 
   try {
     const created = await prisma.agrupacion.create({
-      data: { agrupacion: name }
+      data: { 
+        agrupacion: name,
+        isVisibleInPublic: isVisibleInPublic !== undefined ? isVisibleInPublic : true
+      }
     });
     await logActivity("Agrupación Creada", clerkId, { name });
     return NextResponse.json(created);

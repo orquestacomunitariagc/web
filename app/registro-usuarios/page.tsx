@@ -4,24 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import '@/css/onboarding.css';
 
-const AGRUPACIONES = [
-  "Orquesta", "Coro", "Ensemble Flautas", "Ensemble Metales",
-  "Ensemble Chelos", "Big Band"
-];
-
-const SECCIONES = [
-  "Dirección artística y musical (OCGC y Orquesta)",
-  "Dirección musical (Ensemble Flautas)",
-  "Dirección musical (Ensemble Metales)",
-  "Dirección musical (Ensemble Violonchelos)",
-  "Dirección musical (Coro)",
-  "Violín primero", "Violín segundo", "Viola", "Violonchelo", "Contrabajo",
-  "Flauta", "Oboe", "Clarinete", "Fagot",
-  "Trompeta", "Trompa", "Trombón", "Tuba", "Bombardino",
-  "Arpa", "Piano", "Órgano", "Percusión",
-  "Alto (coro)", "Soprano (coro)", "Bajo (coro)", "Tenor (coro)"
-];
-
 const IconCheck = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
     <polyline points="20 6 9 17 4 12"/>
@@ -56,6 +38,21 @@ export default function PaginaRegistroSecreta() {
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<any>(null);
+
+  const [dbAgrupaciones, setDbAgrupaciones] = useState<string[]>([]);
+  const [dbSecciones, setDbSecciones] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/agrupaciones?public=true')
+      .then(r => r.json())
+      .then(data => setDbAgrupaciones(Array.isArray(data) ? data.map((d: any) => d.agrupacion) : []))
+      .catch(console.error);
+
+    fetch('/api/secciones?public=true')
+      .then(r => r.json())
+      .then(data => setDbSecciones(Array.isArray(data) ? data.map((d: any) => d.seccion) : []))
+      .catch(console.error);
+  }, []);
 
   // Capturar código de la URL
   useEffect(() => {
@@ -276,14 +273,14 @@ export default function PaginaRegistroSecreta() {
                         <label>Agrupación Principal</label>
                         <select name="agrupacion" value={formData.agrupacion} onChange={handleChange} required>
                           <option value="">-- Selecciona --</option>
-                          {AGRUPACIONES.map(a => <option key={a} value={a}>{a}</option>)}
+                          {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
                       </div>
                       <div className="form-group">
                         <label>Instrumento / Voz</label>
                         <select name="instrument" value={formData.instrument} onChange={handleChange} required>
                           <option value="">-- Elige --</option>
-                          {SECCIONES.map(s => <option key={s} value={s}>{s}</option>)}
+                          {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
                     </div>
@@ -293,14 +290,14 @@ export default function PaginaRegistroSecreta() {
                         <label>Segunda Agrupación (Opcional)</label>
                         <select name="agrupacion2" value={formData.agrupacion2} onChange={handleChange}>
                           <option value="">-- Ninguna --</option>
-                          {AGRUPACIONES.map(a => <option key={a} value={a}>{a}</option>)}
+                          {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
                       </div>
                       <div className="form-group">
                         <label>Segundo Instrumento</label>
                         <select name="instrument2" value={formData.instrument2} onChange={handleChange}>
                           <option value="">-- Ninguna --</option>
-                          {SECCIONES.map(s => <option key={s} value={s}>{s}</option>)}
+                          {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
                     </div>

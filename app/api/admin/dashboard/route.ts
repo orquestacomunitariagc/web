@@ -32,19 +32,34 @@ export async function GET() {
       }
     });
 
-    const statsArray = agrupaciones.map(a => {
-      const sectionCounts: Record<string, number> = {};
-      a.estructuras.forEach(e => {
-        const secName = e.seccion?.seccion || "Otro";
-        sectionCounts[secName] = (sectionCounts[secName] || 0) + 1;
-      });
+    const AGRUPACION_ORDER = [
+      "Orquesta", "Coro",
+      "Ensemble Flautas", "Ensemble Metales", "Ensemble Chelos",
+      "Big Band",
+      "Colaboradores", "Invitados", "Empresa Externa"
+    ];
 
-      return {
-        name: a.agrupacion,
-        count: a.estructuras.length,
-        sections: Object.entries(sectionCounts).map(([name, count]) => ({ name, count }))
-      };
-    });
+    const statsArray = agrupaciones
+      .map(a => {
+        const sectionCounts: Record<string, number> = {};
+        a.estructuras.forEach(e => {
+          const secName = e.seccion?.seccion || "Otro";
+          sectionCounts[secName] = (sectionCounts[secName] || 0) + 1;
+        });
+
+        return {
+          name: a.agrupacion,
+          count: a.estructuras.length,
+          sections: Object.entries(sectionCounts).map(([name, count]) => ({ name, count }))
+        };
+      })
+      .sort((a, b) => {
+        const iA = AGRUPACION_ORDER.indexOf(a.name);
+        const iB = AGRUPACION_ORDER.indexOf(b.name);
+        const rankA = iA === -1 ? 999 : iA;
+        const rankB = iB === -1 ? 999 : iB;
+        return rankA - rankB;
+      });
 
     return NextResponse.json({
       totalUsers,
