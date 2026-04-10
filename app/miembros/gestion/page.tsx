@@ -678,7 +678,7 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const revokeInvitation = (id: string) => {
+  const deleteInvitation = (id: string) => {
     confirmAction("¿Revocar esta invitación? El enlace dejará de funcionar.", async () => {
       await fetch(`/api/admin/invitations/${id}`, { method: 'DELETE' });
       showToast("Invitación revocada");
