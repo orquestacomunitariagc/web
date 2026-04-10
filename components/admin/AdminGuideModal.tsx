@@ -9,87 +9,83 @@ const HELPS = {
     steps: [
       "Visualiza el total de músicos registrados y obras disponibles.",
       "Observa la distribución por familias (Cuerda, Viento, etc.) en el gráfico circular.",
-      "Consulta el desglose por secciones para saber cuántos músicos hay en cada instrumento.",
-      "Usa estos datos para planificar necesidades de refuerzos o ver el alcance del archivo."
+      "Control de Participación: Monitoriza cuántos músicos están 'Activos' frente a colaboradores de refuerzo.",
+      "Archivística: Consulta los programas con más material cargado para prever la carga de trabajo."
     ]
   },
   scores: {
     title: "🎼 Gestión de Partituras",
     desc: "Central para subir y organizar todo el material musical.",
     steps: [
-      "Subida Individual: Indica título, selecciona programa, sube el PDF y marca los instrumentos que deben verlo.",
-      "Documentos Generales: Marca 'Marcar como Documento' para archivos que deben ver TODOS (estatutos, normas).",
-      "Renombrado Automático: El sistema renombrará tu archivo como 'Obra_Secciones.pdf' para mantener el orden.",
-      "Importación Masiva: Usa el bloque azul inferior. Carga el CSV y luego selecciona todos los archivos PDF físicamente."
+      "Agrupación y Etiqueta: Para que un músico vea una partitura, el archivo debe coincidir con su Agrupación (ej: Orquesta) Y su Etiqueta (ej: Oboe).",
+      "Documentos Generales: Usa 'Marcar como Documento' para reglamentos o partituras que TODOS los músicos deban ver, independientemente de su instrumento.",
+      "Fuente de Datos: El sistema cruza automáticamente los metadatos del PDF con la tabla Estructura de la base de datos para garantizar la seguridad.",
+      "Importación Masiva: Carga un CSV con los metadatos y luego selecciona los PDFs. El sistema los emparejará por el nombre del archivo."
     ]
   },
   categories: {
     title: "📅 Programas y Conciertos",
-    desc: "Agrupadores lógicos de partituras por eventos.",
+    desc: "Agrupadores lógicos de partituras y eventos.",
     steps: [
-      "Crea un programa (ej: 'Concierto Año Nuevo 2024') para agrupar todas sus partituras.",
-      "Añade una fecha para que el sistema ordene los programas cronológicamente.",
-      "Puedes editar o eliminar programas; las partituras asociadas no se borran."
+      "Crea un programa para agrupar partituras y sincronizarlas con el Calendario.",
+      "Cronología: Las fechas asignadas aquí determinan el orden en que los músicos ven los programas en su área privada.",
+      "Edición Segura: Al editar un programa, las partituras asociadas se actualizan en cascada para mantener la integridad."
     ]
   },
   roles: {
     title: "🎷 Diccionario de Etiquetas",
-    desc: "Define los instrumentos y etiquetas para clasificar partituras.",
+    desc: "Define los instrumentos y etiquetas para filtrar partituras.",
     steps: [
-      "Añade instrumentos asignándoles una 'Familia' (Cuerda, Viento Madera, etc.).",
-      "Estas etiquetas son las que ven los músicos para filtrar sus partituras.",
-      "Importante: La etiqueta (ej: 'Fagot') es distinta de la sección (ej: 'Fagot I')."
+      "Etiqueta vs Sección: Un músico puede estar en la sección 'Violín II' pero ver partituras bajo la etiqueta 'Violín'.",
+      "Clasificación: Asigna familias (Cuerda, Viento...) para organizar los filtros del Dashboard y las carpetas de archivo.",
+      "Sincronización: Cualquier cambio aquí se propaga a los metadatos de Clerk de los músicos afectados al instante."
     ]
   },
   sections: {
-    title: "🏛️ Estructura Artística",
-    desc: "Configura las secciones disponibles para los perfiles de los músicos.",
+    title: "🏛️ Fuente de Verdad (Estructura)",
+    desc: "Configura la base jerárquica de la plataforma.",
     steps: [
-      "Define las posiciones específicas (ej: 'Violín I', 'Soprano II').",
-      "Estas secciones se usan en el alta de personal, invitaciones y CSV.",
-      "No afectan directamente a qué partituras ven los músicos, para eso usa las Etiquetas."
+      "Secciones, Agrupaciones y Papeles: Estas tablas definen qué combinaciones son válidas para los músicos.",
+      "Control de Acceso: El sistema usa estas entradas para generar automáticamente las etiquetas de acceso en tiempo real.",
+      "Visibilidad Pública: Puedes marcar qué secciones o papeles aparecen en la web pública (ej: Ocultar perfiles de gestión interna)."
     ]
   },
   calendar: {
     title: "🗓️ Calendario de Actividades",
     desc: "Controlador de los próximos hitos de la OCGC.",
     steps: [
-      "Añade Ensayos (Color Azul) o Conciertos (Color Rojo/Urgente).",
-      "Indica fecha, hora, lugar y una breve descripción.",
-      "Los músicos verán estos eventos en su tablón de anuncios principal."
+      "Importación Dual: Sube calendarios desde archivos .CSV o exportaciones .ICS (Google Calendar, Outlook).",
+      "Mapeo de Programas: Al importar, el sistema busca coincidencias en los nombres para vincular los ensayos a sus programas de partituras.",
+      "Notificación Visual: Los eventos se diferencian por colores: Ensayos (Azul), Conciertos (Rojo/Urgente) y Reuniones (Verde)."
     ]
   },
   personal: {
-    title: "👥 Gestión de Personal e Invitaciones",
-    desc: "Control absoluto de quién entra y quién colabora.",
+    title: "👥 Gestión de Permisos y Perfiles",
+    desc: "Control total sincronizado con Clerk.",
     steps: [
-      "Selección de Modo: Al crear un usuario manualmente, elige entre 'Estándar' (con acceso y email) o 'Externo' (solo registro en base de datos, sin contraseña/email obligatorio).",
-      "Perfiles Artísticos: Puedes asignar múltiples combinaciones de Agrupación, Sección y Papel (Músico, Director, etc.) a un solo usuario.",
-      "Identificación Especial: Los usuarios externos aparecen con un badge naranja 'EXTERNO' para diferenciarlos fácilmente de los registrados vía Clerk.",
-      "Registro de Matrícula de Coche: Campo disponible para control de acceso o parking (ej: 1234 ABC).",
-      "Roles en el Sistema: Activa 'Master' (total) o 'Archivero' (gestión de partituras). Estos roles se bloquean automáticamente para usuarios externos.",
-      "Importación Masiva CSV: Soporta las nuevas columnas 'es_externo', 'agrupacion', 'seccion' y 'papel' para crear plantillas completas con perfiles artísticos en segundos.",
-      "Bloqueo y Filtros: Usa el botón de baneo para pausar accesos y utiliza los filtros superiores para ver solo administradores, músicos o externos."
+      "Lógica de Acceso: Si un usuario no tiene perfiles artísticos activos en la base de datos, el sistema lo 'Banea' automáticamente en Clerk.",
+      "Gestión de Perfiles: Puedes añadir múltiples combinaciones (ej: Orquesta / Violín I / Músico y Coro / Tenor / Jefe de Sección).",
+      "Sincronización Automática: Al guardar un cambio en un perfil, el sistema reconstruye los metadatos de Clerk sin que tengas que intervenir.",
+      "Edición Rápida: Usa los selectores integrados en la tabla del modal para cambiar agrupaciones o secciones sin cerrar la ventana.",
+      "Acceso a Plataforma: Para músicos sin cuenta (externos), usa 'Activar Acceso' para crearles su cuenta de Clerk y vincular sus datos históricos."
     ]
   },
   logs: {
-    title: "📝 Auditoría de logs",
+    title: "📝 Auditoría y Seguridad",
     desc: "Trazabilidad de cada cambio en el sistema.",
     steps: [
-      "Revisa quién subió qué archivo y cuándo.",
-      "Los logs son inmutables y sirven para resolver conflictos de gestión.",
-      "Exporta el historial a CSV para informes de actividad mensuales."
+      "Sincronización de Clerk: Revisa los logs para confirmar que los cambios de permisos se han propagado correctamente a la nube.",
+      "Historial de Archivo: Seguimiento de quién ha subido, editado o borrado material musical sensible.",
+      "Reportes: Los logs se pueden filtrar por fecha para auditorías internas de gestión administrativa."
     ]
   },
   requests: {
-    title: "📩 Bandeja de Solicitudes",
+    title: "📩 Selección de Talento",
     desc: "Gestión de músicos interesados en unirse a la OCGC.",
     steps: [
-      "Recibe todas las peticiones enviadas desde la sección pública '/unete'.",
-      "Evaluando: Usa este estado para peticiones que necesiten una revisión técnica adicional, como consultar con un jefe de sección o planificar una audición.",
-      "Aceptar: Marca la solicitud como aceptada y te lleva automáticamente a generar su invitación nominativa (precarga nombre e email).",
-      "Rechazar: Descarte de perfiles que no se ajustan a las necesidades actuales.",
-      "Filtros: Usa el selector superior para organizar tu flujo de trabajo (Pendientes, En Evaluación, etc.)."
+      "Alta Inteligente: Al 'Aceptar' una solicitud, el sistema precarga todos los datos del músico en el formulario de Invitación.",
+      "Estados de Filtro: Clasifica a los aspirantes entre 'Pendientes', 'En Evaluación' o 'Aceptados' para un flujo de trabajo ordenado.",
+      "Seguridad: Las solicitudes borradas se eliminan físicamente; asegúrate de haber procesado los datos antes de borrar."
     ]
   }
 };

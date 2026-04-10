@@ -37,26 +37,27 @@ export async function GET() {
     });
 
     const userStructures = dbUser?.estructuras || [];
+    const clerkRoles = (user?.publicMetadata?.roles as string[]) || [];
 
-    // Traemos las partituras (luego filtramos por pares en JS para máxima exactitud)
+    // Traemos las partituras
     const allScores = await prisma.score.findMany({
       include: { category: true },
       orderBy: { createdAt: 'desc' }
     });
 
     const filteredScores = allScores.filter(score => {
-      // 1. Documentos generales: Todos ven
       if (score.isDocument) return true;
-
-      // 2. Sin restricciones: Todos ven
       if (score.allowedRoles.length === 0 && score.allowedAgrupaciones.length === 0) return true;
 
-      // 3. Validación de Pares Estrictos:
-      // El usuario debe tener AL MENOS UNA estructura que coincida con los requisitos de la partitura
+      // A. COMPROBACIÓN CLERK (Etiquetas Manuales/Comodines como "General Orquesta")
+      // Si la partitura pide un rol que el usuario tiene directamente en su perfil de Clerk
+      const hasClerkRole = score.allowedRoles.some(r => clerkRoles.includes(r));
+      if (hasClerkRole) return true;
+
+      // B. VALIDACIÓN DE PARES ESTRICTOS (Base de Datos)
       return userStructures.some(est => {
         const matchAgrupacion = score.allowedAgrupaciones.length === 0 || score.allowedAgrupaciones.includes(est.agrupacion.agrupacion);
         const matchSeccion = score.allowedRoles.length === 0 || score.allowedRoles.includes(est.seccion.seccion);
-        
         return matchAgrupacion && matchSeccion;
       });
     });

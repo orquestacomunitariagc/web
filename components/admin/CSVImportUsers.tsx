@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Papa from 'papaparse';
+import { useNotifications } from '../ui/NotificationContext';
 
 export default function CSVImportUsers({ onImportSuccess }: { onImportSuccess: () => void }) {
+  const { showToast } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
 
@@ -74,7 +76,7 @@ export default function CSVImportUsers({ onImportSuccess }: { onImportSuccess: (
         if (errors.length > 0) {
           setErrorInfo(`Importados ${successCount}. Errores: ${errors.slice(0, 5).join(' | ')}${errors.length > 5 ? '...' : ''}`);
         } else {
-          alert(`Importación completada. Usuarios creados/actualizados: ${successCount} de ${rows.length}`);
+          showToast(`Importación completada. Usuarios procesados: ${successCount}`);
         }
         
         setLoading(false);

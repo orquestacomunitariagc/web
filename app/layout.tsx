@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Metadata, Viewport } from "next";
 import ClientLayout from "@/components/ClientLayout";
+import { NotificationProvider } from "@/components/ui/NotificationContext";
 import "../css/styles.css";
 
 export const metadata: Metadata = {
@@ -41,11 +42,13 @@ export default function RootLayout({
           />
         </head>
         <body>
-          <ClientLayout>
-            <main id="main-content">
-              {children}
-            </main>
-          </ClientLayout>
+          <NotificationProvider>
+            <ClientLayout>
+              <main id="main-content">
+                {children}
+              </main>
+            </ClientLayout>
+          </NotificationProvider>
         </body>
       </html>
     </ClerkProvider>

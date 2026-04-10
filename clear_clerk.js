@@ -43,26 +43,14 @@ async function clearAllUsers() {
           // 1. Eliminar de Clerk
           await clerk.users.deleteUser(user.id);
           
-          // 2. Eliminar de la base de datos local (Prisma)
-          // Intentamos borrar por ClerkID, por DNI (que es el username) y por Email 
-          // para asegurar que no quede rastro si la migración fue parcial.
-          const userDni = user.username;
-          const userEmails = user.emailAddresses.map(e => e.emailAddress);
-
-          await prisma.user.deleteMany({
-            where: {
-              OR: [
-                { clerkUserId: user.id },
-                { dni: userDni || undefined },
-                { email: { in: userEmails } }
-              ],
-              NOT: {
-                dni: { in: EXCLUDED_USERNAMES } // No borrar si el DNI está en la lista blanca
-              }
-            }
+          // 2. Desvincular de la base de datos local (Prisma)
+          // NO borramos al usuario ni su historial, solo quitamos la vinculación con Clerk
+          await prisma.user.updateMany({
+            where: { clerkUserId: user.id },
+            data: { clerkUserId: null }
           });
 
-          console.log(`🗑️ Eliminado de Clerk y DB: ${user.username || user.id}`);
+          console.log(`🗑️ Eliminado de Clerk y Desvinculado en DB: ${user.username || user.id}`);
           totalDeleted++;
         } catch (e) {
           console.error(`Fallo al borrar ${user.id}: ${e.message}`);

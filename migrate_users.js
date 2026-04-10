@@ -208,13 +208,13 @@ async function migrate() {
 
       // --- D. SINCRONIZAR METADATA CLERK (SISTEMA MULTICAPA) ---
       if (clerkId) {
-        // Obtenemos todas las estructuras activas del usuario
-        const activeStructures = await prisma.estructura.findMany({
-          where: { userId: user.id, activo: true },
+        // Obtenemos todas las estructuras del usuario (activos e inactivos)
+        const allStructures = await prisma.estructura.findMany({
+          where: { userId: user.id },
           include: { agrupacion: true, seccion: true, papel: true }
         });
 
-        // Construimos el set de etiquetas combinadas para permisos
+        const activeStructures = allStructures.filter(s => s.activo);
         const combinedRoles = new Set();
         
         activeStructures.forEach(s => {
@@ -225,7 +225,7 @@ async function migrate() {
           // 1. Etiqueta de Sección simple (Permitir acceso general por instrumento)
           combinedRoles.add(secc);
           
-          // 2. Etiqueta de Papel (Permitir acceso por rango)
+          // 2. Etiqueta de Papel (Permitir acceso por rango/jerarquía)
           combinedRoles.add(papel);
 
           // 3. Combinación Agrupación:Sección (Permiso específico multicapa)
@@ -233,18 +233,34 @@ async function migrate() {
 
           // 4. Etiqueta de Agrupación (Acceso a todo lo de un grupo)
           combinedRoles.add(`Agrupación:${agrup}`);
+
+          // 5. Comodines "Tutti" para compatibilidad heredada
+          if (agrup === "Orquesta Comunitaria Gran Canaria") combinedRoles.add("Orquesta - Tutti");
+          if (agrup === "Coro Comunitario Gran Canaria") combinedRoles.add("Coro - Tutti");
         });
 
         const metadata = {
-          roles: [...combinedRoles], // Todas las etiquetas combinadas
-          agrupaciones: [...new Set(activeStructures.map(s => s.agrupacion.agrupacion))],
-          isDirector: activeStructures.some(s => s.papel.isDirector)
+          roles: Array.from(combinedRoles),
+          agrupaciones: Array.from(new Set(activeStructures.map(s => s.agrupacion.agrupacion))),
+          // Detección automática de directores/jefes basada en el papel
+          isDirector: activeStructures.some(s => 
+            s.papel.papel.toLowerCase().includes("director") || 
+            s.papel.papel.toLowerCase().includes("jefe")
+          )
         };
 
         await clerk.users.updateUser(clerkId, {
           publicMetadata: metadata
         });
-        console.log(`🔑 Permisos Multicapa Sincronizados para ${user.dni}: [${metadata.roles.length} etiquetas]`);
+
+        // Sincronizar estado de baneo en función de si tiene estructuras activas
+        if (activeStructures.length > 0) {
+          try { await clerk.users.unbanUser(clerkId); } catch(e){}
+        } else {
+          try { await clerk.users.banUser(clerkId); } catch(e){}
+        }
+
+        console.log(`🔑 Permisos Sincronizados para ${user.dni}: [${metadata.roles.length} etiquetas]`);
       }
 
     } catch (error) {

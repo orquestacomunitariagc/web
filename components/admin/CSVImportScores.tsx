@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Papa from 'papaparse';
+import { useNotifications } from '../ui/NotificationContext';
 
 export default function CSVImportScores({ categories, onImportSuccess }: { categories: any[], onImportSuccess: () => void }) {
+  const { showToast } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [csvData, setCsvData] = useState<any[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -26,7 +28,7 @@ export default function CSVImportScores({ categories, onImportSuccess }: { categ
 
   const startImport = async () => {
     if (!csvData.length || !selectedFiles) {
-      alert("Debes cargar el CSV y seleccionar las partituras físicas (.pdf)");
+      showToast("Debes cargar el CSV y seleccionar las partituras físicas (.pdf)", "error");
       return;
     }
 
@@ -75,7 +77,7 @@ export default function CSVImportScores({ categories, onImportSuccess }: { categ
       }
     }
 
-    alert(`Proceso finalizado. Importados: ${successCount} de ${csvData.length} filas del CSV.`);
+    showToast(`Proceso finalizado. Importados: ${successCount} de ${csvData.length} filas del CSV.`, "success");
     setLoading(false);
     onImportSuccess();
     setCsvData([]);

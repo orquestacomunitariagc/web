@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import { useNotifications } from '../ui/NotificationContext';
 
 interface Category { id: number; name: string; }
 interface Event { id: number; title: string; date: string; location?: string; description?: string; type: string; category?: Category | null; }
 
 export default function CalendarPanel() {
+  const { showToast, confirmAction } = useNotifications();
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,12 +43,16 @@ export default function CalendarPanel() {
     finally { setLoading(false); }
   };
 
-  const deleteEvent = async (id: number) => {
-    if (!confirm("¿Seguro que quieres eliminar este evento?")) return;
-    try {
-      const res = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
-      if (res.ok) fetchEvents();
-    } catch (err) { console.error(err); }
+  const deleteEvent = (id: number) => {
+    confirmAction("¿Seguro que quieres eliminar este evento?", async () => {
+      try {
+        const res = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast("Evento eliminado");
+          fetchEvents();
+        }
+      } catch (err) { showToast("Error al eliminar", "error"); }
+    });
   };
 
   const updateEvent = async () => {
@@ -110,7 +116,7 @@ export default function CalendarPanel() {
       rows = parseICS(text);
     } else {
       rows = parseCSV(text).map(r => {
-        const catName = r.programa || r.categoría || r.category || "";
+        const catName = r.programa || r.program || r.categoría || r.category || "";
         const matchedCat = categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
         
         // Procesar fecha DD/MM/AAAA y hora HH:MM

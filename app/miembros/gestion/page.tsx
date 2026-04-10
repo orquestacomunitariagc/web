@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from "@clerk/nextjs";
+import { useNotifications } from '@/components/ui/NotificationContext';
 import CalendarPanel from '@/components/admin/CalendarPanel';
 import LogsPanel from '@/components/admin/LogsPanel';
 import CSVImportScores from '@/components/admin/CSVImportScores';
@@ -85,12 +86,13 @@ export default function AdminOCGCPartituras() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("¡Enlace copiado al portapapeles! 📋");
+    showToast("¡Enlace copiado al portapapeles! 📋");
   };
 
   // Estados para vista previa de subida
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadIsDoc, setUploadIsDoc] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Filtros de búsqueda y selectores
@@ -111,6 +113,8 @@ export default function AdminOCGCPartituras() {
   const [editingAgrupacion, setEditingAgrupacion] = useState<any | null>(null);
   const [editingPapel, setEditingPapel] = useState<any | null>(null);
   const [editingSeccion, setEditingSeccion] = useState<any | null>(null);
+
+  const { showToast, confirmAction } = useNotifications();
 
   const isMaster = !!user?.publicMetadata?.isMaster;
   const isArchiver = !!user?.publicMetadata?.isArchiver;
@@ -142,12 +146,18 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const deleteSection = async (id: number) => {
-    if (!confirm("¿Eliminar esta sección artística?")) return;
-    try {
-      const res = await fetch(`/api/secciones?id=${id}`, { method: "DELETE" });
-      if (res.ok) loadData(true);
-    } catch (error) { console.error("Error deleting section:", error); }
+  const deleteSection = (id: number) => {
+    confirmAction("¿Eliminar esta sección artística?", async () => {
+      try {
+        const res = await fetch(`/api/secciones?id=${id}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast("Sección eliminada");
+          loadData(true);
+        }
+      } catch (error) { 
+        showToast("Error al eliminar", "error"); 
+      }
+    });
   };
 
   const createAgrupacion = async () => {
@@ -164,12 +174,16 @@ export default function AdminOCGCPartituras() {
     finally { setIsCreatingAgrupacion(false); }
   };
 
-  const deleteAgrupacion = async (id: number) => {
-    if (!confirm("¿Eliminar esta agrupación?")) return;
-    try {
-      const res = await fetch(`/api/agrupaciones?id=${id}`, { method: "DELETE" });
-      if (res.ok) loadData(true);
-    } catch (error) { console.error("Error deleting agrupacion:", error); }
+  const deleteAgrupacion = (id: number) => {
+    confirmAction("¿Eliminar esta agrupación?", async () => {
+      try {
+        const res = await fetch(`/api/agrupaciones?id=${id}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast("Agrupación eliminada");
+          loadData(true);
+        }
+      } catch (error) { showToast("Error al eliminar", "error"); }
+    });
   };
 
   const createPapel = async () => {
@@ -186,12 +200,16 @@ export default function AdminOCGCPartituras() {
     finally { setIsCreatingPapel(false); }
   };
 
-  const deletePapel = async (id: number) => {
-    if (!confirm("¿Eliminar este papel artístico?")) return;
-    try {
-      const res = await fetch(`/api/papeles?id=${id}`, { method: "DELETE" });
-      if (res.ok) loadData(true);
-    } catch (error) { console.error("Error deleting papel:", error); }
+  const deletePapel = (id: number) => {
+    confirmAction("¿Eliminar este papel artístico?", async () => {
+      try {
+        const res = await fetch(`/api/papeles?id=${id}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast("Papel eliminado");
+          loadData(true);
+        }
+      } catch (error) { showToast("Error al eliminar", "error"); }
+    });
   };
 
   const updateAgrupacion = async () => {
@@ -246,7 +264,7 @@ export default function AdminOCGCPartituras() {
 
   const upgradeToPlatform = async () => {
     if (!upgradeData.email || !upgradeData.username || !upgradeData.password) {
-      alert("Por favor, rellena Email, Usuario y Contraseña para activar el acceso.");
+      showToast("Email, Usuario y Contraseña son obligatorios", "error");
       return;
     }
     setIsUpgrading(true);
@@ -263,18 +281,39 @@ export default function AdminOCGCPartituras() {
       });
       
       if (res.ok) {
-        alert(`¡Acceso activado con éxito! El usuario ahora tiene cuenta en la plataforma.`);
+        showToast("¡Acceso activado con éxito!");
         setUpgradingMember(null);
         setUpgradeData({ email: '', username: '', password: '' });
-        loadMembers(true); // Recargar lista para ver el nuevo ID de Clerk
+        loadMembers(true);
       } else {
         const err = await res.json();
-        alert(`Error: ${err.error || "No se pudo activar el acceso"}`);
+        showToast(`Error: ${err.error || "No se pudo activar el acceso"}`, "error");
       }
     } catch (error) {
       console.error("Error upgrading user:", error);
     } finally {
       setIsUpgrading(false);
+    }
+  };
+
+  const updateEstructura = async (userId: string, estructuraId: number, data: any) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify({ userId, action: "update-estructura", estructuraId, ...data })
+      });
+      if (res.ok) {
+        await loadMembers(true);
+        showToast("Cambio guardado en DB y Clerk");
+        
+        // Sincronizar modal si está abierto
+        if (editingMemberData && editingMemberData.id === userId) {
+          const freshMember = members.find(m => m.id === userId);
+          if (freshMember) setEditingMemberData(freshMember);
+        }
+      }
+    } catch (error) {
+       showToast("Error al guardar", "error");
     }
   };
 
@@ -373,14 +412,16 @@ export default function AdminOCGCPartituras() {
     setSelectedAgrupaciones(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
   };
 
-  const deleteScore = async (id: number) => {
-    if (!confirm("¿Eliminar esta partitura?")) return;
-    try {
-      await fetch(`/api/scores/${id}`, { method: "DELETE" });
-      setScores(prev => prev.filter(s => s.id !== id));
-    } catch (error) {
-      console.error("Error deleting score:", error);
-    }
+  const deleteScore = (id: number) => {
+    confirmAction("¿Eliminar esta partitura?", async () => {
+      try {
+        await fetch(`/api/scores/${id}`, { method: "DELETE" });
+        setScores(prev => prev.filter(s => s.id !== id));
+        showToast("Partitura eliminada");
+      } catch (error) {
+        showToast("Error al eliminar", "error");
+      }
+    });
   };
 
   const createTag = async () => {
@@ -532,29 +573,6 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const updateEstructura = async (userId: string, estId: number, data: { activo?: boolean, atril?: string | number }) => {
-    try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          estructuraId: estId,
-          action: "update-estructura",
-          ...data
-        })
-      });
-      
-      if (res.ok) {
-        // Al cambiar estructura, recargamos personal porque puede haber cambiado el estado del perfil
-        loadMembers(true);
-        // Si estamos en medio de una edición, esto refrescará los datos del modal también al recargar los integrantes
-      }
-    } catch (error) {
-      console.error("Error updating estructura:", error);
-    }
-  };
-
   const toggleMasterStatus = async (userId: string, isCurrentlyMaster: boolean) => {
     // Si es un usuario de DB sin Clerk, forzamos creación de cuenta antes de dar permisos
     if (userId.startsWith('ext_')) {
@@ -605,7 +623,7 @@ export default function AdminOCGCPartituras() {
 
   const createInvitation = async (sendEmail: boolean = false) => {
     if (!inviteName || !inviteSection) {
-      alert("Por favor, pon el nombre y la sección del invitado.");
+      showToast("Nombre y Sección son obligatorios", "error");
       return;
     }
     setIsGeneratingInvite(true);
@@ -634,12 +652,11 @@ export default function AdminOCGCPartituras() {
         const fullUrl = `${window.location.origin}/registro-usuarios?code=${newInvite.code}`;
         
         if (sendEmail && inviteEmail) {
-          alert(`¡Invitación enviada por correo a ${inviteEmail}!`);
+          showToast(`¡Invitación enviada a ${inviteEmail}!`);
         } else {
           setLastGeneratedLink(fullUrl);
-          // Opcional: copiar automáticamente
           navigator.clipboard.writeText(fullUrl);
-          alert("✓ Enlace generado y copiado al portapapeles.");
+          showToast("✓ Enlace generado y copiado al portapapeles.");
         }
         setInviteName('');
         setInviteSurname('');
@@ -660,14 +677,12 @@ export default function AdminOCGCPartituras() {
     }
   };
 
-  const deleteInvitation = async (id: number) => {
-    if (!confirm("¿Revocar esta invitación?")) return;
-    try {
-      const res = await fetch(`/api/admin/invitations?id=${id}`, { method: "DELETE" });
-      if (res.ok) setInvitations(prev => prev.filter(i => i.id !== id));
-    } catch (error) {
-      console.error("Error deleting invitation:", error);
-    }
+  const revokeInvitation = (id: string) => {
+    confirmAction("¿Revocar esta invitación? El enlace dejará de funcionar.", async () => {
+      await fetch(`/api/admin/invitations/${id}`, { method: 'DELETE' });
+      showToast("Invitación revocada");
+      loadMembers(true);
+    });
   };
 
   const updateJoinRequestStatus = async (id: number, status: string, name?: string, surname?: string, email?: string) => {
@@ -683,7 +698,6 @@ export default function AdminOCGCPartituras() {
           setInviteName(name);
           setInviteSurname(surname || '');
           setInviteEmail(email || '');
-          // Buscamos la solicitud original para sacar los datos artísticos
           const req = joinRequests.find(jr => jr.id === id);
           if (req) {
             setInvitePhone(req.phone || '');
@@ -694,28 +708,27 @@ export default function AdminOCGCPartituras() {
           setTimeout(() => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }, 100);
-          alert(`Solicitud de ${name} ${surname || ""} aceptada. Se han precargado sus datos. Pulsa el botón correpondiente abajo para finalizar.`);
+          showToast(`Solicitud de ${name} ${surname || ""} aceptada. Se han precargado sus datos.`);
         }
       }
     } catch (err) { console.error("Error updating status:", err); }
   };
 
   const deleteJoinRequest = async (id: number) => {
-    if (!confirm("¿Eliminar esta solicitud por completo?")) return;
-    try {
+    confirmAction("¿Eliminar esta solicitud por completo?", async () => {
       const res = await fetch(`/api/admin/join-requests?id=${id}`, { method: "DELETE" });
       if (res.ok) setJoinRequests(prev => prev.filter(jr => jr.id !== id));
-    } catch (err) { console.error("Error deleting request:", err); }
+    });
   };
 
   const createManualUser = async () => {
     const { firstName, email, username, password, dni, isExternal } = manualUser;
     if (!firstName || !dni) {
-      alert("Por favor, rellena al menos el Nombre y el DNI (*)");
+      showToast("Por favor, rellena al menos el Nombre y el DNI (*)", "error");
       return;
     }
     if (!isExternal && (!email || !username || !password)) {
-      alert("Para usuarios con acceso (No Externos), el Email, Usuario y Contraseña son obligatorios.");
+      showToast("Para usuarios con acceso (No Externos), el Email, Usuario y Contraseña son obligatorios.", "error");
       return;
     }
     setIsCreatingManual(true);
@@ -730,7 +743,7 @@ export default function AdminOCGCPartituras() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("¡Usuario creado con éxito!");
+        showToast("¡Usuario creado con éxito!");
         setIsManualCreateOpen(false);
         setManualUser({
           firstName: '', surname: '', email: '', username: '', password: '', dni: '', phone: '', matricula: '',
@@ -739,11 +752,10 @@ export default function AdminOCGCPartituras() {
         });
         loadMembers(true);
       } else {
-        alert("Error: " + data.error);
+        showToast("Error: " + data.error, "error");
       }
     } catch (error) {
-      console.error("Error creating manual user:", error);
-      alert("Error al conectar con el servidor.");
+      showToast("Error al conectar con el servidor", "error");
     } finally {
       setIsCreatingManual(false);
     }
@@ -839,19 +851,46 @@ export default function AdminOCGCPartituras() {
           <div className="admin-content-grid">
           <section className="admin-form-card">
             <h2>Añadir Partitura o Documento</h2>
-            <form action="/api/scores/create" method="POST" encType="multipart/form-data" className="new-score-form" onSubmit={(e) => {
-              const isDoc = (e.currentTarget.elements.namedItem("isDocument") as HTMLInputElement).checked;
-              const catId = (e.currentTarget.elements.namedItem("categoryId") as HTMLSelectElement).value;
-              if (!isDoc && !catId) {
+            <form 
+              onSubmit={async (e) => {
                 e.preventDefault();
-                alert("Debes seleccionar un Programa para la partitura o marcarla como Documento.");
-              }
-              const isDocCheck = (e.currentTarget.elements.namedItem("isDocument") as HTMLInputElement).checked || uploadIsDoc;
-              if (!isDocCheck && (selectedTags.length === 0 || selectedAgrupaciones.length === 0)) {
-                 e.preventDefault();
-                 alert("Debes seleccionar al menos una Agrupación y un Instrumento, o marcar la opción Documento para que todos puedan verlo.");
-              }
-            }}>
+                const form = e.currentTarget;
+                const isDoc = (form.elements.namedItem("isDocument") as HTMLInputElement).checked;
+                const catId = (form.elements.namedItem("categoryId") as HTMLSelectElement).value;
+                
+                if (!isDoc && !catId) {
+                  return showToast("Debes seleccionar un Programa para la partitura o marcarla como Documento.", "error");
+                }
+                if (!isDoc && (selectedTags.length === 0 || selectedAgrupaciones.length === 0)) {
+                   return showToast("Debes seleccionar al menos una Agrupación y un Instrumento.", "error");
+                }
+
+                setIsUploading(true);
+                try {
+                  const fd = new FormData(form);
+                  const res = await fetch("/api/scores/create", {
+                    method: "POST",
+                    body: fd
+                  });
+                  if (res.ok) {
+                    showToast("✅ Partitura publicada con éxito");
+                    loadData(true);
+                    setUploadTitle('');
+                    setSelectedTags([]);
+                    setSelectedAgrupaciones([]);
+                    setUploadIsDoc(false);
+                    form.reset();
+                  } else {
+                    showToast("Error al publicar la partitura", "error");
+                  }
+                } catch (error) {
+                  showToast("Error de conexión", "error");
+                } finally {
+                  setIsUploading(false);
+                }
+              }}
+              className="new-score-form"
+            >
               <input type="text" name="title" placeholder="Título (ej: Sinfonía 9)" required value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} />
               <select name="categoryId" className="category-select">
                 <option value="">Programa</option>
@@ -922,7 +961,14 @@ export default function AdminOCGCPartituras() {
                   {uploadTitle ? `${uploadTitle.trim().replace(/[^a-zA-Z0-9_ -]/g, "_").replace(/\s+/g, "_")}_${uploadIsDoc ? "Documento" : (selectedTags.length > 0 ? selectedTags.map(r => r.replace(/[^a-zA-Z0-9]/g, "")).join("_") : "")}.pdf` : "esperando_datos.pdf"}
                 </code>
               </div>
-              <button type="submit" className="btn-main-admin">Publicar Archivo</button>
+              <button 
+                type="submit" 
+                className="btn-main-admin" 
+                disabled={isUploading}
+                style={{ marginTop: '1rem' }}
+              >
+                {isUploading ? "Subiendo archivo..." : "Publicar Ahora"}
+              </button>
             </form>
           </section>
 
@@ -1758,15 +1804,40 @@ export default function AdminOCGCPartituras() {
                           <th>Papel</th>
                           <th style={{ textAlign: 'center' }}>Estado</th>
                           <th>Atril</th>
+                          <th style={{ textAlign: 'center' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
                         {editingMemberData.estructuras && editingMemberData.estructuras.length > 0 ? (
                           editingMemberData.estructuras.map((est: any) => (
                             <tr key={est.id}>
-                              <td style={{ fontSize: '0.85rem' }}>{est.agrupacion}</td>
-                              <td style={{ fontSize: '0.85rem' }}>{est.seccion}</td>
-                              <td style={{ fontSize: '0.85rem', color: '#666', fontWeight: 500 }}>{est.papel}</td>
+                              <td>
+                                <select 
+                                  value={agrupaciones.find(a => a.agrupacion === est.agrupacion)?.id || ""}
+                                  onChange={(e) => updateEstructura(editingMemberData.id, est.id, { agrupacionId: e.target.value })}
+                                  className="premium-select-inline"
+                                >
+                                  {agrupaciones.map(a => <option key={a.id} value={a.id}>{a.agrupacion}</option>)}
+                                </select>
+                              </td>
+                              <td>
+                                <select 
+                                  value={secciones.find(s => s.seccion === est.seccion)?.id || ""}
+                                  onChange={(e) => updateEstructura(editingMemberData.id, est.id, { seccionId: e.target.value })}
+                                  className="premium-select-inline"
+                                >
+                                  {secciones.sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.id}>{s.seccion}</option>)}
+                                </select>
+                              </td>
+                              <td>
+                                <select 
+                                  value={papeles.find(p => p.papel === est.papel)?.id || ""}
+                                  onChange={(e) => updateEstructura(editingMemberData.id, est.id, { papelId: e.target.value })}
+                                  className="premium-select-inline"
+                                >
+                                  {papeles.map(p => <option key={p.id} value={p.id}>{p.papel}</option>)}
+                                </select>
+                              </td>
                               <td style={{ textAlign: 'center' }}>
                                 <button 
                                   onClick={() => updateEstructura(editingMemberData.id, est.id, { activo: !est.activo })}
@@ -1788,43 +1859,94 @@ export default function AdminOCGCPartituras() {
                                   style={{ width: '60px', padding: '0.4rem', borderRadius: '4px', border: '1px solid #ddd' }}
                                 />
                               </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button 
+                                  onClick={() => {
+                                    confirmAction("¿Eliminar este perfil artístico del usuario?", async () => {
+                                      const res = await fetch("/api/admin/users", {
+                                        method: "POST",
+                                        body: JSON.stringify({ userId: editingMemberData.id, action: "delete-estructura", estructuraId: est.id })
+                                      });
+                                      if(res.ok) {
+                                        showToast("Perfil eliminado");
+                                        loadMembers(true);
+                                        setEditingMemberData(null);
+                                      }
+                                    });
+                                  }}
+                                  style={{ background: '#ff7675', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                                  title="Eliminar Perfil"
+                                >
+                                  🗑️
+                                </button>
+                              </td>
                             </tr>
                           ))
                         ) : (
-                          <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Sin perfiles registrados en DB</td></tr>
+                          <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>Sin perfiles registrados en DB</td></tr>
                         )}
                       </tbody>
                     </table>
                   </div>
 
-                  {!editingMemberData.isExternal && (
-                    <>
-                      <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--clr-navy)' }}>Permisos de Acceso a Partituras (Clerk)</h3>
-                      <div className="role-selector-grid">
-                        {[...predefinedTags]
-                          .filter(r => !r.includes("- Tutti")) // Ocultar Tutti en edición de miembros
-                          .sort((a,b) => a.localeCompare(b))
-                          .map(r => (
-                            <label key={r} className={`role-chip-card ${selectedMemberTags.includes(r) ? 'selected' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedMemberTags.includes(r)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedMemberTags([...selectedMemberTags, r]);
-                                } else {
-                                  setSelectedMemberTags(selectedMemberTags.filter(sr => sr !== r));
-                                }
-                              }}
-                              style={{ display: 'none' }}
-                            />
-                            <span className="chip-check">{selectedMemberTags.includes(r) ? '✓' : '+'}</span>
-                            <span className="chip-text">{r}</span>
-                          </label>
-                        ))}
+                  <div style={{ marginTop: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: '12px', border: '1px dashed #ced4da' }}>
+                    <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--clr-navy)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>➕</span> Añadir Nuevo Perfil Artístico
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <label style={{ fontSize: '0.7rem', display: 'block', marginBottom: '4px', color: '#666' }}>Agrupación</label>
+                        <select id="newEstAgr" style={{ padding: '0.6rem', width: '100%', borderRadius: '6px', border: '1px solid #ddd' }}>
+                          <option value="">Seleccionar...</option>
+                          {agrupaciones.map(a => <option key={a.id} value={a.id}>{a.agrupacion}</option>)}
+                        </select>
                       </div>
-                    </>
-                  )}
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <label style={{ fontSize: '0.7rem', display: 'block', marginBottom: '4px', color: '#666' }}>Sección / Instrumento</label>
+                        <select id="newEstSec" style={{ padding: '0.6rem', width: '100%', borderRadius: '6px', border: '1px solid #ddd' }}>
+                          <option value="">Seleccionar...</option>
+                          {secciones.sort((a,b) => a.seccion.localeCompare(b.seccion)).map(s => <option key={s.id} value={s.id}>{s.seccion}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ flex: 1, minWidth: '120px' }}>
+                        <label style={{ fontSize: '0.7rem', display: 'block', marginBottom: '4px', color: '#666' }}>Papel</label>
+                        <select id="newEstPap" style={{ padding: '0.6rem', width: '100%', borderRadius: '6px', border: '1px solid #ddd' }}>
+                          <option value="">Seleccionar...</option>
+                          {papeles.map(p => <option key={p.id} value={p.id}>{p.papel}</option>)}
+                        </select>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          const agr = (document.getElementById("newEstAgr") as HTMLSelectElement).value;
+                          const sec = (document.getElementById("newEstSec") as HTMLSelectElement).value;
+                          const pap = (document.getElementById("newEstPap") as HTMLSelectElement).value;
+                          if(!agr || !sec || !pap) return alert("Por favor, selecciona todos los campos.");
+                          
+                          setIsUpgrading(true); 
+                          try {
+                            const res = await fetch("/api/admin/users", {
+                              method: "POST",
+                              body: JSON.stringify({ 
+                                userId: editingMemberData.id, 
+                                action: "add-estructura", 
+                                agrupacionId: agr, 
+                                seccionId: sec, 
+                                papelId: pap 
+                              })
+                            });
+                            if(res.ok) {
+                              showNotification("Perfil añadido y sincronizado");
+                              loadMembers(true);
+                              setEditingMemberData(null);
+                            }
+                          } catch(e) { alert("Error al conectar"); } finally { setIsUpgrading(false); }
+                        }}
+                        style={{ alignSelf: 'flex-end', padding: '0.65rem 1.8rem', background: '#00b894', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                      >
+                        Vincular
+                      </button>
+                    </div>
+                  </div>
 
                   {!editingMemberData.isExternal && (
                     <div className="modal-permissions-summary" style={{ marginTop: '2rem', padding: '1.2rem', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #eee' }}>
@@ -1962,7 +2084,9 @@ export default function AdminOCGCPartituras() {
           )}
 
           {/* Modal Creación Manual de Usuario */}
-          {isManualCreateOpen && (
+      {/* Notificación Global ya está en el Layout, eliminamos la local si existía */}
+
+      {isManualCreateOpen && (
             <div className="admin-modal-overlay">
               <div className="admin-modal-card" style={{ maxWidth: '800px' }}>
                 <div className="modal-header">
@@ -2493,7 +2617,53 @@ export default function AdminOCGCPartituras() {
         .secret-link-box span { font-size: 0.8rem; font-weight: bold; color: #666; }
         .btn-copy-link { background: #478AC9; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s; }
         .btn-copy-link:hover { background: #357ABD; transform: translateY(-1px); }
-      `}</style>
+      
+  /* Estilos para Toasts y Selectores Premium */
+  .admin-toast {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    background: #2d3436;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideDownIn 0.3s ease-out;
+  }
+  .admin-toast.success { border-bottom: 3px solid #00b894; }
+  .admin-toast.error { border-bottom: 3px solid #ff7675; }
+  .toast-icon { font-size: 1.2rem; }
+
+  .premium-select-inline {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    width: 100%;
+    border: 1px solid #eee;
+    background: #fdfdfd;
+    border-radius: 6px;
+    color: #444;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .premium-select-inline:hover {
+    border-color: var(--clr-blue);
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  @keyframes slideDownIn {
+    from { top: -50px; opacity: 0; }
+    to { top: 2rem; opacity: 1; }
+  }
+`}</style>
       {isMaster && activeTab === 'requests' && (
         <section className="admin-list-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
