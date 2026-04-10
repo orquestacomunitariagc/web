@@ -4,66 +4,158 @@ import { useEffect, useState } from 'react';
 import { useUser } from "@clerk/nextjs";
 
 export default function TablonPage() {
-  const { user, isLoaded } = useUser();
+  const { isLoaded } = useUser();
   const [recentScores, setRecentScores] = useState<any[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   useEffect(() => {
     if (isLoaded) {
       fetch("/api/scores")
         .then(res => res.json())
         .then(data => setRecentScores(data.slice(0, 5)))
-        .catch(err => console.error("Error cargando el tablón:", err));
+        .catch(err => console.error("Error loading scores:", err));
+
+      fetch("/api/events")
+        .then(res => res.json())
+        .then(data => {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const futureEvents = data.filter((ev:any) => new Date(ev.date) >= today);
+            setUpcomingEvents(futureEvents.slice(0, 4));
+        })
+        .catch(err => console.error("Error loading events:", err));
     }
   }, [isLoaded]);
 
-  if (!isLoaded) return <p>Entrando en el área de miembros...</p>;
+  const forceDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
+  };
 
-  const userRoles = (user?.publicMetadata?.roles as string[]) || [];
+  if (!isLoaded) return null;
 
   return (
-    <div className="tablon-view-django">
-      <div className="tablon-header">
-        <h1>Hola, {user?.firstName?.toUpperCase()}</h1>
-      </div>
+    <div className="tablon-full-container">
+      <div className="dashboard-grid">
+        
+        {/* COLUMNA IZQUIERDA: PARTITURAS */}
+        <section className="dashboard-column">
+          <div className="column-header">
+            <span className="icon-circ">🎼</span>
+            <h3>Últimas partituras</h3>
+          </div>
 
-      {/*<div className="stats-box">
-         <div className="stat-item">
-            <span>Tu Agrupación:</span>
-            <strong>{userRoles.length > 0 ? userRoles.join(", ") : "Invitado"}</strong>
-         </div>
-      </div>*/}
+          <div className="cards-stack">
+            {recentScores.length === 0 ? (
+              <div className="empty-card">No hay partituras nuevas.</div>
+            ) : (
+              recentScores.map(score => (
+                <div key={score.id} className="item-row-card">
+                  <div className="item-body">
+                    <div className="item-meta">
+                       <h4>{score.title}</h4>
+                       <span className="item-label">{score.category?.name || "General"}</span>
+                    </div>
+                  </div>
+                  <div className="item-actions">
+                    <a href={score.fileUrl} target="_blank" rel="noopener noreferrer" className="btn-action-outline">ABRIR</a>
+                    <button onClick={() => forceDownload(score.fileUrl, `${score.title}.pdf`)} className="btn-action-solid">DESCARGAR</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
-      <div className="recent-grid">
-         <h3>Últimas partituras añadidas a tu sección:</h3>
-         {recentScores.length === 0 ? (
-           <p className="no-scores">No hay partituras nuevas para tu sección.</p>
-         ) : (
-           <div className="scores-list">
-             {recentScores.map(score => (
-               <div key={score.id} className="score-row">
-                 <span className="score-title">{score.title}</span>
-                 <a href={score.fileUrl} download className="btn-dl">DESCARGAR PDF</a>
-               </div>
-             ))}
-           </div>
-         )}
+        {/* COLUMNA DERECHA: AGENDA */}
+        <section className="dashboard-column">
+          <div className="column-header">
+            <span className="icon-circ accent">📅</span>
+            <h3>Próximos eventos</h3>
+          </div>
+
+          <div className="cards-stack">
+            {upcomingEvents.length === 0 ? (
+              <div className="empty-card">No hay eventos próximos.</div>
+            ) : (
+              upcomingEvents.map(event => {
+                const evDate = new Date(event.date);
+                const isConcert = event.type?.toLowerCase().includes("concierto");
+                return (
+                  <div key={event.id} className={`event-card-item ${isConcert ? 'is-concert' : ''}`}>
+                    <div className="ev-date-box">
+                      <span className="day">{evDate.getDate()}</span>
+                      <span className="month">{evDate.toLocaleString('es-ES', { month: 'short' }).toUpperCase()}</span>
+                    </div>
+                    <div className="ev-info-details">
+                       <h5>{event.title}</h5>
+                       <p>
+                         {evDate.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' })} • {evDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
+                       </p>
+                       <span className="ev-loc">{event.location || "Sede OCGC"}</span>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
+
       </div>
 
       <style jsx>{`
-        .tablon-view-django { padding: 1rem 0; width: 100%; border-radius: 12px; }
-        .tablon-header h1 { color: #1a2a4b; font-size: 2.22rem; margin-bottom: 0.5rem; font-weight: 900; }
-        .tablon-header h2 { color: #478AC9; font-size: 1.1rem; margin-bottom: 2rem; font-weight: 700; letter-spacing: 0.05em; }
-        .stats-box { background: #f0f7ff; padding: 1.5rem; border-radius: 12px; margin-bottom: 3rem; border: 1px solid #d0e7ff; }
-        .stat-item { display: flex; gap: 1rem; align-items: center; }
-        .stat-item span { color: #64748b; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
-        .stat-item strong { color: #0369a1; font-weight: 800; font-size: 1rem; }
-        .scores-list { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; }
-        .score-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: white; border: 1px solid #e2e8f0; border-radius: 12px; transition: 0.2s; }
-        .score-row:hover { border-color: #478AC9; transform: translateX(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .score-title { font-weight: 700; color: #334155; font-size: 0.95rem; }
-        .btn-dl { background: #478AC9; color: white !important; padding: 0.6rem 1.2rem; border-radius: 8px; text-decoration: none; font-size: 0.75rem; font-weight: 800; box-shadow: 0 4px 6px rgba(71, 138, 201, 0.2); }
-        .btn-dl:hover { background: #3b71a8; }
-        .recent-grid h3 { color: #1e293b; font-size: 1.1rem; font-weight: 800; margin-bottom: 1.5rem; }
+        .tablon-full-container { width: 100%; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 340px; gap: 4rem; }
+        
+        .dashboard-column { display: flex; flex-direction: column; gap: 1.5rem; }
+        .column-header { display: flex; align-items: center; gap: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
+        .column-header h3 { font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 800; color: #1a2a4b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+        .icon-circ { width: 36px; height: 36px; background: #478AC910; color: #478AC9; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid #478AC920; }
+        .icon-circ.accent { background: #1a2a4b10; color: #1a2a4b; }
+
+        .cards-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+
+        /* Row Card Partitura */
+        .item-row-card { background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .item-row-card:hover { border-color: #478AC930; transform: translateX(5px); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        
+        .item-meta h4 { margin: 0; font-size: 1.1rem; color: #1a2a4b; font-weight: 800; }
+        .item-label { font-size: 0.75rem; color: #478AC9; font-weight: 700; text-transform: uppercase; margin-top: 0.2rem; display: block; }
+
+        .item-actions { display: flex; gap: 0.75rem; }
+        .btn-action-solid { background: #1a2a4b; color: white !important; border: none; padding: 0.65rem 1.25rem; border-radius: 8px; font-weight: 800; font-size: 0.7rem; cursor: pointer; }
+        .btn-action-outline { background: #f8fafc; color: #64748b !important; border: 1px solid #e2e8f0; padding: 0.65rem 1.25rem; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-decoration: none; }
+
+        /* Row Card Evento */
+        .event-card-item { display: flex; align-items: center; gap: 1.25rem; padding: 1rem; background: #fff; border: 1px solid #f1f5f9; border-radius: 12px; border-left: 4px solid #478AC9; }
+        .event-card-item.is-concert { border-left-color: #f43f5e; background: #fff8f8; }
+        
+        .ev-date-box { display: flex; flex-direction: column; align-items: center; min-width: 50px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.4rem; }
+        .ev-date-box .day { font-size: 1.25rem; font-weight: 900; color: #1a2a4b; line-height: 1; }
+        .ev-date-box .month { font-size: 0.65rem; font-weight: 800; color: #94a3b8; }
+        
+        .ev-info-details h5 { margin: 0; font-size: 0.95rem; color: #1a2a4b; font-weight: 800; line-height: 1.2; }
+        .ev-info-details p { margin: 0.2rem 0 0; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: capitalize; }
+        .ev-loc { font-size: 0.65rem; color: #478AC9; font-weight: 800; text-transform: uppercase; margin-top: 0.4rem; display: block; }
+
+        .empty-card { padding: 3rem; text-align: center; color: #cbd5e1; border: 1px dashed #f1f5f9; border-radius: 12px; }
+
+        @media (max-width: 1100px) {
+          .dashboard-grid { grid-template-columns: 1fr; gap: 3rem; }
+          .dashboard-column:last-child { max-width: 400px; }
+        }
       `}</style>
     </div>
   );

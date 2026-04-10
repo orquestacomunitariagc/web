@@ -244,8 +244,8 @@ export default function CalendarPanel() {
                     <h4 className="event-title-text">{ev.title}</h4>
                   </div>
                   <div className="event-details-line">
-                    <span className="ev-detail">🕒 {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="ev-detail">📅 {new Date(ev.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span className="ev-detail">🕒 {new Date(ev.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</span>
+                    <span className="ev-detail">📅 {new Date(ev.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
                     {ev.location && <span className="ev-detail">📍 {ev.location}</span>}
                     {ev.category && <span className="ev-detail" style={{ color: '#478AC9' }}>📂 {ev.category.name}</span>}
                   </div>

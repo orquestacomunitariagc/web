@@ -25,8 +25,9 @@ function MiniCalendar({ events, year, month, onMonthChange }: { events: any[], y
     const map: Record<number, any[]> = {};
     events.forEach(ev => {
       const d = new Date(ev.date);
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        const day = d.getDate();
+      // Usamos UTC para evitar desfases de día
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month) {
+        const day = d.getUTCDate();
         if (!map[day]) map[day] = [];
         map[day].push(ev);
       }
@@ -95,7 +96,7 @@ function MiniCalendar({ events, year, month, onMonthChange }: { events: any[], y
                       <span className="tooltip-dot" style={{ background: TYPE_COLORS[ev.type]?.dot }} />
                       <div className="tooltip-info">
                         <strong>{ev.title}</strong>
-                        <span>{new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {ev.location || 'Sede'}</span>
+                        <span>{new Date(ev.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} • {ev.location || 'Sede'}</span>
                       </div>
                     </div>
                   ))}
@@ -345,8 +346,8 @@ function EventCard({ event, past = false }: { event: any; past?: boolean }) {
     <div className="event-card" style={{ opacity: past ? 0.65 : 1, borderLeft: `4px solid ${colors.accent}` }}>
       {/* Caja fecha */}
       <div className="event-date-box" style={{ background: colors.bg, color: colors.accent }}>
-        <span className="event-date-day">{d.getDate()}</span>
-        <span className="event-date-mon">{MONTHS_ES[d.getMonth()].slice(0, 3)}</span>
+        <span className="event-date-day">{d.getUTCDate()}</span>
+        <span className="event-date-mon">{MONTHS_ES[d.getUTCMonth()].slice(0, 3)}</span>
       </div>
       <div className="event-body">
         <div className="event-meta">
@@ -355,9 +356,9 @@ function EventCard({ event, past = false }: { event: any; past?: boolean }) {
         </div>
         <div className="event-title">{event.title}</div>
         <div className="event-detail-row">
-          <span className="event-detail">🕒 {d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="event-detail">🕒 {d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</span>
           {event.location && <span className="event-detail">📍 {event.location}</span>}
-          <span className="event-detail">📅 {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          <span className="event-detail">📅 {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
         </div>
         {event.description && (
           <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#888', lineHeight: 1.5 }}>{event.description}</p>
