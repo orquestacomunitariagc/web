@@ -110,12 +110,25 @@ export default function CalendarPanel() {
       rows = parseICS(text);
     } else {
       rows = parseCSV(text).map(r => {
-        const catName = r.programa || r.programa || r.categoría || r.category || "";
+        const catName = r.programa || r.categoría || r.category || "";
         const matchedCat = categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
         
+        // Procesar fecha DD/MM/AAAA y hora HH:MM
+        const rawDate = r.fecha || r.date || "";
+        const rawTime = r.hora || r.time || "00:00";
+        let dateValue = rawDate;
+
+        if (rawDate.includes('/')) {
+          const parts = rawDate.split('/');
+          if (parts.length === 3) {
+            const [d, m, y] = parts;
+            dateValue = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          }
+        }
+
         return {
           title: r.title || r.título || r.nombre || 'Sin título',
-          date: r.fecha || r.date || r.inicio,
+          date: dateValue ? `${dateValue}T${rawTime}:00` : undefined,
           location: r.lugar || r.location || r.ubicación || undefined,
           description: r.descripción || r.description || undefined,
           type: r.tipo || r.type || 'Ensayo',
@@ -194,7 +207,7 @@ export default function CalendarPanel() {
           <div style={{ marginTop: '2rem', padding: '1.5rem', border: '2px dashed #dfe4ea', borderRadius: '12px', background: '#fafbfc' }}>
             <h4 style={{ margin: '0 0 0.5rem', color: '#2c3e50', fontSize: '0.95rem' }}>📥 Importar Calendario</h4>
             <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#888' }}>
-              Acepta archivos <strong>.ics</strong> (iCal / Google Calendar) o <strong>.csv</strong> con columnas: <code>title, date, type, location, description, programa</code>
+              Acepta archivos <strong>.ics</strong> o <strong>.csv</strong> con columnas: <code>title, date (DD/MM/AAAA), time (HH:MM), type, location, description, program</code>
             </p>
             <input
               ref={fileRef}
