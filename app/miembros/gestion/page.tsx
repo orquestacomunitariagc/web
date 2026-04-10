@@ -28,8 +28,8 @@ export default function AdminOCGCPartituras() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingTag, setEditingTag] = useState<{ id: number; name: string } | null>(null);
-  const [editingCategory, setEditingCategory] = useState<{ id: number; name: string; eventDate?: string | null } | null>(null);
+  const [editingTag, setEditingTag] = useState<any | null>(null);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
   const [editingScore, setEditingScore] = useState<any | null>(null);
   const [newTagName, setNewTagName] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -107,6 +107,10 @@ export default function AdminOCGCPartituras() {
   const [filterPersonalRole, setFilterPersonalRole] = useState<string>('all');
   const [filterPersonalInstrument, setFilterPersonalInstrument] = useState<string>('all');
   const [secciones, setSecciones] = useState<any[]>([]);
+
+  const [editingAgrupacion, setEditingAgrupacion] = useState<any | null>(null);
+  const [editingPapel, setEditingPapel] = useState<any | null>(null);
+  const [editingSeccion, setEditingSeccion] = useState<any | null>(null);
 
   const isMaster = !!user?.publicMetadata?.isMaster;
   const isArchiver = !!user?.publicMetadata?.isArchiver;
@@ -188,6 +192,56 @@ export default function AdminOCGCPartituras() {
       const res = await fetch(`/api/papeles?id=${id}`, { method: "DELETE" });
       if (res.ok) loadData(true);
     } catch (error) { console.error("Error deleting papel:", error); }
+  };
+
+  const updateAgrupacion = async () => {
+    if (!editingAgrupacion || !editingAgrupacion.agrupacion.trim()) return;
+    try {
+      const res = await fetch("/api/agrupaciones", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          id: editingAgrupacion.id, 
+          name: editingAgrupacion.agrupacion,
+          isVisibleInPublic: editingAgrupacion.isVisibleInPublic
+        })
+      });
+      if (res.ok) { setEditingAgrupacion(null); loadData(true); }
+    } catch (e) { }
+  };
+
+  const updatePapel = async () => {
+    if (!editingPapel || !editingPapel.papel.trim()) return;
+    try {
+      const res = await fetch("/api/papeles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          id: editingPapel.id, 
+          name: editingPapel.papel,
+          isVisibleInPublic: editingPapel.isVisibleInPublic,
+          isDirector: editingPapel.isDirector
+        })
+      });
+      if (res.ok) { setEditingPapel(null); loadData(true); }
+    } catch (e) { }
+  };
+
+  const updateSection = async () => {
+    if (!editingSeccion || !editingSeccion.seccion.trim()) return;
+    try {
+      const res = await fetch("/api/secciones", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          id: editingSeccion.id, 
+          seccion: editingSeccion.seccion,
+          familia: editingSeccion.familia,
+          isVisibleInPublic: editingSeccion.isVisibleInPublic
+        })
+      });
+      if (res.ok) { setEditingSeccion(null); loadData(true); }
+    } catch (e) { }
   };
 
   const upgradeToPlatform = async () => {
@@ -1109,7 +1163,7 @@ export default function AdminOCGCPartituras() {
                         <div key={inst.id} style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #ccc', padding: '0.3rem 0.7rem', borderRadius: '20px', fontSize: '0.85rem' }}>
                           <span>{inst.name}</span>
                           <button 
-                            onClick={() => setEditingTag({ id: inst.id, name: inst.name })} 
+                            onClick={() => setEditingTag(inst)} 
                             style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#478AC9', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}
                             title="Editar"
                           >
@@ -1132,17 +1186,17 @@ export default function AdminOCGCPartituras() {
           </section>
         </div>
 
-        {/* Modal Edición de Rol / Instrumento */}
+        {/* Modal Edición de Rol / Instrumento / Etiqueta */}
         {editingTag && (
           <div className="admin-modal-overlay">
             <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
               <div className="modal-header">
                 <div>
-                  <h2>Editar Instrumento o Etiqueta</h2>
+                  <h2>Editar Etiqueta / Sección</h2>
                 </div>
                 <button onClick={() => setEditingTag(null)} className="btn-close-modal">✕</button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Nombre</label>
                   <input
@@ -1152,22 +1206,46 @@ export default function AdminOCGCPartituras() {
                     style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
                   />
                 </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'block', marginBottom: '0.4rem' }}>Familia</label>
+                  <select 
+                    value={editingTag.familia || 'Otros'} 
+                    onChange={(e) => setEditingTag({ ...editingTag, familia: e.target.value })} 
+                    style={{ padding: '0.8rem', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
+                  >
+                    {DEFAULT_FAMILIAS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={editingTag.isVisible !== false} 
+                    onChange={(e) => setEditingTag({...editingTag, isVisible: e.target.checked})} 
+                    id="visTagEdit" 
+                  />
+                  <label htmlFor="visTagEdit" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Visible en Web Pública</label>
+                </div>
               </div>
               <div className="modal-footer">
                 <button onClick={() => setEditingTag(null)} className="btn-cancel">Cancelar</button>
                 <button onClick={async () => {
                   if (!editingTag.name.trim()) return;
                   try {
-                    const res = await fetch(`/api/roles/${editingTag.id}`, {
+                    const res = await fetch(`/api/secciones`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name: editingTag.name })
+                      body: JSON.stringify({ 
+                        id: editingTag.id, 
+                        seccion: editingTag.name,
+                        familia: editingTag.familia,
+                        isVisibleInPublic: editingTag.isVisible
+                      })
                     });
                     if (res.ok) {
                       loadData(true);
                       setEditingTag(null);
                     } else {
-                      alert("No se ha podido actualizar la etiqueta.");
+                      alert("No se ha podido actualizar.");
                     }
                   } catch(e) { }
                 }} className="btn-save" style={{ padding: '0.8rem 2rem' }}>Guardar Cambios</button>
@@ -1179,6 +1257,7 @@ export default function AdminOCGCPartituras() {
       )}
 
       {activeTab === 'sections' && (
+        <>
         <div className="admin-content-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
           {/* COLUMNA 1: AGRUPACIONES */}
           <section className="admin-form-card">
@@ -1199,9 +1278,18 @@ export default function AdminOCGCPartituras() {
             
             <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {agrupaciones.map((a: any) => (
-                <div key={a.id} className="catalog-item-row">
-                  <span>{a.agrupacion}</span>
-                  <button onClick={() => deleteAgrupacion(a.id)} className="btn-delete-small">×</button>
+                <div key={a.id} className="catalog-item-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                    <span style={{ fontWeight: 500 }}>{a.agrupacion}</span>
+                    {a.isVisibleInPublic ? 
+                      <span style={{ fontSize: '0.7rem', color: '#27ae60', background: '#eafaf1', padding: '2px 6px', borderRadius: '10px' }}>Público</span> :
+                      <span style={{ fontSize: '0.7rem', color: '#7f8c8d', background: '#f2f4f4', padding: '2px 6px', borderRadius: '10px' }}>Privado</span>
+                    }
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button onClick={() => setEditingAgrupacion(a)} title="Editar" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#478AC9', fontSize: '1.1rem' }}>✎</button>
+                    <button onClick={() => deleteAgrupacion(a.id)} className="btn-delete-small">×</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1226,9 +1314,19 @@ export default function AdminOCGCPartituras() {
             
             <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {papeles.map((p: any) => (
-                <div key={p.id} className="catalog-item-row">
-                  <span>{p.papel}</span>
-                  <button onClick={() => deletePapel(p.id)} className="btn-delete-small">×</button>
+                <div key={p.id} className="catalog-item-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                    <span style={{ fontWeight: 500 }}>{p.papel}</span>
+                    {p.isDirector && <span style={{ fontSize: '0.7rem', color: '#d35400', background: '#fef5e7', padding: '2px 6px', borderRadius: '10px' }}>Dir.</span>}
+                    {p.isVisibleInPublic ? 
+                      <span style={{ fontSize: '0.7rem', color: '#27ae60', background: '#eafaf1', padding: '2px 6px', borderRadius: '10px' }}>Público</span> :
+                      <span style={{ fontSize: '0.7rem', color: '#7f8c8d', background: '#f2f4f4', padding: '2px 6px', borderRadius: '10px' }}>Privado</span>
+                    }
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button onClick={() => setEditingPapel(p)} title="Editar" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#478AC9', fontSize: '1.1rem' }}>✎</button>
+                    <button onClick={() => deletePapel(p.id)} className="btn-delete-small">×</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1253,14 +1351,115 @@ export default function AdminOCGCPartituras() {
             
             <div className="catalog-scroll-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {secciones.sort((a,b) => a.seccion.localeCompare(b.seccion)).map((s: any) => (
-                <div key={s.id} className="catalog-item-row">
-                  <span>{s.seccion}</span>
-                  <button onClick={() => deleteSection(s.id)} className="btn-delete-small">×</button>
+                <div key={s.id} className="catalog-item-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <span style={{ fontWeight: 500 }}>{s.seccion}</span>
+                      {s.isVisibleInPublic ? 
+                        <span style={{ fontSize: '0.7rem', color: '#27ae60', background: '#eafaf1', padding: '2px 6px', borderRadius: '10px' }}>Público</span> :
+                        <span style={{ fontSize: '0.7rem', color: '#7f8c8d', background: '#f2f4f4', padding: '2px 6px', borderRadius: '10px' }}>Privado</span>
+                      }
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#888' }}>{s.familia}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button onClick={() => setEditingSeccion(s)} title="Editar" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#478AC9', fontSize: '1.1rem' }}>✎</button>
+                    <button onClick={() => deleteSection(s.id)} className="btn-delete-small">×</button>
+                  </div>
                 </div>
               ))}
             </div>
           </section>
         </div>
+
+        {/* MODAL EDITAR AGRUPACIÓN */}
+        {editingAgrupacion && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
+              <div className="modal-header">
+                <h2>Editar Agrupación</h2>
+                <button onClick={() => setEditingAgrupacion(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '4px' }}>Nombre</label>
+                  <input type="text" value={editingAgrupacion.agrupacion} onChange={(e) => setEditingAgrupacion({...editingAgrupacion, agrupacion: e.target.value})} style={{ width: '100%' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <input type="checkbox" checked={editingAgrupacion.isVisibleInPublic} onChange={(e) => setEditingAgrupacion({...editingAgrupacion, isVisibleInPublic: e.target.checked})} id="visAg" />
+                  <label htmlFor="visAg" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Visible en Web Pública</label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingAgrupacion(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={updateAgrupacion} className="btn-save">Guardar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL EDITAR PAPEL */}
+        {editingPapel && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
+              <div className="modal-header">
+                <h2>Editar Papel / Rol</h2>
+                <button onClick={() => setEditingPapel(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '4px' }}>Nombre</label>
+                  <input type="text" value={editingPapel.papel} onChange={(e) => setEditingPapel({...editingPapel, papel: e.target.value})} style={{ width: '100%' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <input type="checkbox" checked={editingPapel.isDirector} onChange={(e) => setEditingPapel({...editingPapel, isDirector: e.target.checked})} id="isDir" />
+                  <label htmlFor="isDir" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Es Director (Resaltado)</label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <input type="checkbox" checked={editingPapel.isVisibleInPublic} onChange={(e) => setEditingPapel({...editingPapel, isVisibleInPublic: e.target.checked})} id="visPap" />
+                  <label htmlFor="visPap" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Visible en Web Pública</label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingPapel(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={updatePapel} className="btn-save">Guardar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL EDITAR SECCIÓN */}
+        {editingSeccion && (
+          <div className="admin-modal-overlay">
+            <div className="admin-modal-card" style={{ maxWidth: '400px' }}>
+              <div className="modal-header">
+                <h2>Editar Sección</h2>
+                <button onClick={() => setEditingSeccion(null)} className="btn-close-modal">✕</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '4px' }}>Nombre</label>
+                  <input type="text" value={editingSeccion.seccion} onChange={(e) => setEditingSeccion({...editingSeccion, seccion: e.target.value})} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '4px' }}>Familia</label>
+                  <select value={editingSeccion.familia} onChange={(e) => setEditingSeccion({...editingSeccion, familia: e.target.value})} style={{ width: '100%', padding: '0.6rem' }}>
+                    {DEFAULT_FAMILIAS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <input type="checkbox" checked={editingSeccion.isVisibleInPublic} onChange={(e) => setEditingSeccion({...editingSeccion, isVisibleInPublic: e.target.checked})} id="visSec" />
+                  <label htmlFor="visSec" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Visible en Web Pública</label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setEditingSeccion(null)} className="btn-cancel">Cancelar</button>
+                <button onClick={updateSection} className="btn-save">Guardar</button>
+              </div>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {isMaster && activeTab === 'personal' && (
@@ -1486,7 +1685,16 @@ export default function AdminOCGCPartituras() {
                     </td>
                     <td className="member-email">{m.email}</td>
                     <td className="member-roles">
-                      <span>{m.roles.length > 0 ? m.roles.join(", ") : "—"}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {m.estructuras && m.estructuras.length > 0 ? (
+                          m.estructuras.map((est: any, idx: number) => (
+                          <span key={idx} style={{ fontSize: '0.75rem', color: est.activo ? '#333' : '#999' }}>
+                            {est.seccion}{!est.activo && " (Inic.)"}
+                          </span>
+                        ))) : (
+                          <span style={{ color: '#999' }}>—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="status-cell">
                       <button
@@ -1547,6 +1755,7 @@ export default function AdminOCGCPartituras() {
                         <tr>
                           <th>Agrupación</th>
                           <th>Sección</th>
+                          <th>Papel</th>
                           <th style={{ textAlign: 'center' }}>Estado</th>
                           <th>Atril</th>
                         </tr>
@@ -1557,6 +1766,7 @@ export default function AdminOCGCPartituras() {
                             <tr key={est.id}>
                               <td style={{ fontSize: '0.85rem' }}>{est.agrupacion}</td>
                               <td style={{ fontSize: '0.85rem' }}>{est.seccion}</td>
+                              <td style={{ fontSize: '0.85rem', color: '#666', fontWeight: 500 }}>{est.papel}</td>
                               <td style={{ textAlign: 'center' }}>
                                 <button 
                                   onClick={() => updateEstructura(editingMemberData.id, est.id, { activo: !est.activo })}

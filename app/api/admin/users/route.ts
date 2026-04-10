@@ -19,7 +19,8 @@ export async function GET() {
           estructuras: {
             include: {
               agrupacion: true,
-              seccion: true
+              seccion: true,
+              papel: true
             }
           }
         }
@@ -44,6 +45,7 @@ export async function GET() {
           id: e.id,
           agrupacion: e.agrupacion.agrupacion,
           seccion: e.seccion.seccion,
+          papel: e.papel.papel,
           activo: e.activo,
           atril: e.atril
         })) || []
@@ -68,6 +70,7 @@ export async function GET() {
           id: e.id,
           agrupacion: e.agrupacion.agrupacion,
           seccion: e.seccion.seccion,
+          papel: e.papel.papel,
           activo: e.activo,
           atril: e.atril
         }))

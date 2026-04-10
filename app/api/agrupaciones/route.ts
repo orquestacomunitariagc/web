@@ -59,3 +59,28 @@ export async function DELETE(req: Request) {
     return new NextResponse("Error deleting agrupación", { status: 500 });
   }
 }
+export async function PATCH(req: Request) {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new NextResponse("Unauthorized", { status: 401 });
+
+  const user = await currentUser();
+  if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
+
+  try {
+    const { id, name, isVisibleInPublic } = await req.json();
+    if (!id) return new NextResponse("ID missing", { status: 400 });
+
+    const updated = await prisma.agrupacion.update({
+      where: { id: parseInt(id) },
+      data: { 
+        agrupacion: name,
+        isVisibleInPublic: isVisibleInPublic !== undefined ? isVisibleInPublic : undefined
+      }
+    });
+
+    await logActivity("Agrupación Actualizada", clerkId, { id, name });
+    return NextResponse.json(updated);
+  } catch (error) {
+    return new NextResponse("Error updating agrupación", { status: 500 });
+  }
+}

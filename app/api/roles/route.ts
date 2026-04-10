@@ -20,7 +20,8 @@ export async function GET() {
       acc[fam].push({ 
         id: curr.id, 
         name: curr.seccion, 
-        type: 'tag', // Marcador explícito
+        familia: curr.familia,
+        type: 'tag',
         isVisible: curr.isVisibleInPublic
       });
       return acc;

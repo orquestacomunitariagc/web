@@ -25,43 +25,43 @@ export async function GET() {
       return NextResponse.json(allScores);
     }
 
-    // Obtenemos los roles y agrupaciones reales desde la DB para mayor precision
+    // Obtenemos las estructuras reales de la DB para la validación de pares estricta
     const dbUser = await prisma.user.findUnique({
       where: { clerkUserId: userId },
       include: {
         estructuras: {
+          where: { activo: true },
           include: { seccion: true, agrupacion: true }
         }
       }
     });
 
-    const dbRoles = dbUser?.estructuras.map(e => e.seccion.seccion) || [];
-    const dbAgrupaciones = dbUser?.estructuras.map(e => e.agrupacion.agrupacion) || [];
+    const userStructures = dbUser?.estructuras || [];
 
-    const effectiveRoles = [...new Set([...userRoles, ...dbRoles])];
-    const effectiveAgrupaciones = [...new Set([...dbAgrupaciones])];
-
-    // Para directores o roles especiales, damos acceso a todos los de esa agrupación
-    const isDirectorOrquesta = effectiveRoles.some(r => r.includes("Orquesta") && r.toLowerCase().includes("direcci"));
-    if (isDirectorOrquesta && !effectiveAgrupaciones.includes("Orquesta")) effectiveAgrupaciones.push("Orquesta");
-    // (A futuro se pueden mapear mas directores)
-
-    const filteredScores = await prisma.score.findMany({
-      where: {
-        OR: [
-          { isDocument: true },
-          { allowedRoles: { isEmpty: true }, allowedAgrupaciones: { isEmpty: true } },
-          {
-             AND: [
-               { allowedRoles: { hasSome: effectiveRoles } },
-               { allowedAgrupaciones: { hasSome: effectiveAgrupaciones } }
-             ]
-          }
-        ]
-      },
+    // Traemos las partituras (luego filtramos por pares en JS para máxima exactitud)
+    const allScores = await prisma.score.findMany({
       include: { category: true },
       orderBy: { createdAt: 'desc' }
     });
+
+    const filteredScores = allScores.filter(score => {
+      // 1. Documentos generales: Todos ven
+      if (score.isDocument) return true;
+
+      // 2. Sin restricciones: Todos ven
+      if (score.allowedRoles.length === 0 && score.allowedAgrupaciones.length === 0) return true;
+
+      // 3. Validación de Pares Estrictos:
+      // El usuario debe tener AL MENOS UNA estructura que coincida con los requisitos de la partitura
+      return userStructures.some(est => {
+        const matchAgrupacion = score.allowedAgrupaciones.length === 0 || score.allowedAgrupaciones.includes(est.agrupacion.agrupacion);
+        const matchSeccion = score.allowedRoles.length === 0 || score.allowedRoles.includes(est.seccion.seccion);
+        
+        return matchAgrupacion && matchSeccion;
+      });
+    });
+
+    return NextResponse.json(filteredScores);
 
     return NextResponse.json(filteredScores);
   } catch (error) {
