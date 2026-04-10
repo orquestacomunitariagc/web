@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DAYS_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DAYS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 const TYPE_COLORS: Record<string, { bg: string; accent: string; dot: string }> = {
   Ensayo:   { bg: '#e3f2fd', accent: '#2e86de', dot: '#2e86de' },
@@ -12,7 +12,13 @@ const TYPE_COLORS: Record<string, { bg: string; accent: string; dot: string }> =
 };
 
 function MiniCalendar({ events, year, month, onMonthChange }: { events: any[], year: number, month: number, onMonthChange: (y: number, m: number) => void }) {
-  const firstDay = new Date(year, month, 1).getDay();
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  
+  // Ajuste para que la semana empiece en Lunes
+  // getDay(): 0=Dom, 1=Lun, ..., 6=Sáb.
+  // Queremos: 0=Lun, 1=Mar, ..., 5=Sáb, 6=Dom.
+  const firstDayRaw = new Date(year, month, 1).getDay();
+  const firstDay = (firstDayRaw + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const eventsByDay = useMemo(() => {
@@ -34,7 +40,7 @@ function MiniCalendar({ events, year, month, onMonthChange }: { events: any[], y
   const today = new Date();
 
   return (
-    <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #eef2f5', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+    <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #eef2f5', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', position: 'relative' }}>
       {/* Header mes */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.2rem 1.5rem', background: '#1a2a4b', color: '#fff' }}>
         <button onClick={prev} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
@@ -58,19 +64,42 @@ function MiniCalendar({ events, year, month, onMonthChange }: { events: any[], y
           const dots = dayEvents.slice(0, 3).map(ev => TYPE_COLORS[ev.type]?.dot || '#999');
 
           return (
-            <div key={day} style={{ textAlign: 'center', padding: '0.3rem 0.1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+            <div 
+              key={day} 
+              className="calendar-day-cell"
+              onMouseEnter={() => setHoveredDay(day)}
+              onMouseLeave={() => setHoveredDay(null)}
+              style={{ textAlign: 'center', padding: '0.3rem 0.1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', position: 'relative' }}
+            >
               <span style={{
                 width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.8rem', fontWeight: hasEvent ? 700 : 400,
                 background: isToday ? '#1a2a4b' : hasEvent ? '#e8f4ff' : 'transparent',
                 color: isToday ? '#fff' : hasEvent ? '#1a2a4b' : '#555',
-                cursor: hasEvent ? 'default' : 'default'
+                cursor: 'pointer',
+                transition: '0.2s'
               }}>
                 {day}
               </span>
               {dots.length > 0 && (
                 <div style={{ display: 'flex', gap: '2px' }}>
                   {dots.map((color, di) => <div key={di} style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />)}
+                </div>
+              )}
+
+              {/* Tooltip flotante */}
+              {hoveredDay === day && hasEvent && (
+                <div className="calendar-tooltip">
+                  {dayEvents.map((ev, ei) => (
+                    <div key={ei} className="tooltip-event-item">
+                      <span className="tooltip-dot" style={{ background: TYPE_COLORS[ev.type]?.dot }} />
+                      <div className="tooltip-info">
+                        <strong>{ev.title}</strong>
+                        <span>{new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {ev.location || 'Sede'}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="tooltip-arrow" />
                 </div>
               )}
             </div>
@@ -184,6 +213,26 @@ export default function AgendaPage() {
         .stat-row:last-child { border-bottom: none; }
         .stat-label { font-size: 0.85rem; color: #555; display: flex; align-items: center; gap: 0.4rem; }
         .stat-value { font-size: 1.1rem; font-weight: 800; color: #1a2a4b; }
+
+        .calendar-day-cell:hover span { transform: scale(1.1); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .calendar-tooltip {
+          position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+          width: 180px; background: #fff; border: 1px solid #eef2f5; border-radius: 10px;
+          padding: 0.8rem; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 100;
+          text-align: left; pointer-events: none; animation: fadeIn 0.15s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(5px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        
+        .tooltip-event-item { display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
+        .tooltip-event-item:last-child { margin-bottom: 0; }
+        .tooltip-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+        .tooltip-info { display: flex; flex-direction: column; gap: 2px; }
+        .tooltip-info strong { font-size: 0.75rem; color: #1a2a4b; line-height: 1.2; }
+        .tooltip-info span { font-size: 0.65rem; color: #888; }
+        .tooltip-arrow {
+          position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+          width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #fff;
+        }
       `}</style>
 
       <div className="agenda-wrapper">
