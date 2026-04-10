@@ -43,26 +43,71 @@ export default function PaginaRegistroSecreta() {
   const [dbSecciones, setDbSecciones] = useState<string[]>([]);
 
   useEffect(() => {
+    // Cargar Catálogos (Agrupaciones y Roles/Secciones)
     fetch('/api/agrupaciones?public=true')
       .then(r => r.json())
       .then(data => setDbAgrupaciones(Array.isArray(data) ? data.map((d: any) => d.agrupacion) : []))
       .catch(console.error);
 
-    fetch('/api/secciones?public=true')
+    fetch('/api/roles')
       .then(r => r.json())
-      .then(data => setDbSecciones(Array.isArray(data) ? data.map((d: any) => d.seccion) : []))
+      .then(data => {
+        const flatSecciones = Object.values(data).flat()
+          .filter((s: any) => s.isVisible !== false)
+          .map((s: any) => s.name);
+        setDbSecciones(flatSecciones);
+      })
       .catch(console.error);
   }, []);
 
-  // Capturar código de la URL
+  // Capturar código de la URL y VALIDAR AUTOMÁTICAMENTE
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    if (code) setInviteToken(code);
+    if (code) {
+      setInviteToken(code);
+      // Ejecutamos la validación inmediatamente
+      const autoValidate = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch("/api/auth/validate-invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setStep(1);
+            setFormData(prev => ({
+              ...prev,
+              firstName: data.name ?? prev.firstName,
+              surname: data.surname ?? prev.surname,
+              email: data.email ?? prev.email,
+              phone: data.phone ?? prev.phone,
+              agrupacion: data.agrupacion ?? '',
+              instrument: data.seccion ?? '',
+              agrupacion2: data.agrupacion2 ?? '',
+              instrument2: data.seccion2 ?? '',
+              agrupacion3: data.agrupacion3 ?? '',
+              instrument3: data.seccion3 ?? '',
+            }));
+            if (data.email) setConfirmEmail(data.email);
+          } else {
+            setStatus({ success: false, msg: data.error || "Código de invitación no válido." });
+          }
+        } catch (e) {
+          setStatus({ success: false, msg: "Error de conexión al validar código." });
+        } finally {
+          setLoading(false);
+        }
+      };
+      autoValidate();
+    }
   }, []);
 
   const validateInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!inviteToken) return;
     setLoading(true);
     setStatus(null);
     try {
@@ -76,24 +121,22 @@ export default function PaginaRegistroSecreta() {
         setStep(1);
         setFormData(prev => ({
           ...prev,
-          firstName: data.name || prev.firstName,
-          surname: data.surname || prev.surname,
-          email: data.email || prev.email,
-          phone: data.phone || prev.phone,
-          agrupacion: data.agrupacion || prev.agrupacion,
-          instrument: data.seccion || prev.instrument,
-          agrupacion2: data.agrupacion2 || prev.agrupacion2,
-          instrument2: data.seccion2 || prev.instrument2,
-          agrupacion3: data.agrupacion3 || prev.agrupacion3,
-          instrument3: data.seccion3 || prev.instrument3,
+          firstName: data.name ?? prev.firstName,
+          surname: data.surname ?? prev.surname,
+          email: data.email ?? prev.email,
+          phone: data.phone ?? prev.phone,
+          agrupacion: data.agrupacion ?? '',
+          instrument: data.seccion ?? '',
+          agrupacion2: data.agrupacion2 ?? '',
+          instrument2: data.seccion2 ?? '',
+          agrupacion3: data.agrupacion3 ?? '',
+          instrument3: data.seccion3 ?? '',
         }));
-        if (data.email) {
-          setConfirmEmail(data.email);
-        }
+        if (data.email) setConfirmEmail(data.email);
       }
       else setStatus({ success: false, msg: data.error || "Código de invitación no válido o expirado." });
     } catch (error) {
-      setStatus({ success: false, msg: "Error al validar el código. Comprueba tu conexión." });
+      setStatus({ success: false, msg: "Error al validar el código." });
     } finally {
       setLoading(false);
     }
@@ -126,13 +169,13 @@ export default function PaginaRegistroSecreta() {
       const data = await res.json();
       
       if (res.ok) {
-        setStatus({ success: true, msg: "¡Bienvenido a la familia de la OCGC! Tu ficha se ha creado correctamente. Ya puedes acceder al área privada." });
+        setStatus({ success: true, msg: "¡Bienvenido a la familia de la OCGC! Ya puedes acceder al área privada." });
         setStep(6);
       } else {
-        setStatus({ success: false, msg: data.error || "Error en el registro. Revisa tus datos." });
+        setStatus({ success: false, msg: data.error || "Error en el registro." });
       }
     } catch (err) {
-      setStatus({ success: false, msg: "Error inesperado del servidor. Inténtalo de nuevo." });
+      setStatus({ success: false, msg: "Error inesperado del servidor." });
     } finally {
       setLoading(false);
     }
@@ -181,7 +224,7 @@ export default function PaginaRegistroSecreta() {
             </h2>
             <p className="help-text" style={{ marginBottom: 'var(--sp-8)' }}>{status?.msg}</p>
             <Link href="/sign-in" className="btn btn-primary" style={{ display: 'inline-flex', padding: 'var(--sp-4) var(--sp-8)' }}>
-              Ir al Iniciar Sesión
+              Iniciar Sesión
             </Link>
           </div>
         ) : (
@@ -195,19 +238,19 @@ export default function PaginaRegistroSecreta() {
                 <p className="help-text" style={{ marginBottom: 'var(--sp-8)' }}>
                   Por favor, introduce el código de invitación nominativo facilitado por los coordinadores.
                 </p>
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                   <input 
                     type="text" 
                     value={inviteToken} 
                     onChange={(e) => setInviteToken(e.target.value)} 
-                    placeholder="Escribe tu código de 32 caracteres..." 
+                    placeholder="Escribir código..." 
                     required 
-                    style={{ textAlign: 'center', letterSpacing: '1px' }}
+                    style={{ textAlign: 'center', letterSpacing: '2px', fontSize: '1.1rem', fontWeight: 'bold' }}
                     autoComplete="off"
                   />
                 </div>
                 <button type="submit" className="btn-onboarding-primary" style={{ width: '100%' }} disabled={loading}>
-                  {loading ? "Validando acceso..." : "Verificar e Iniciar Registro"}
+                  {loading ? "Validando..." : "Verificar Código"}
                 </button>
               </form>
             )}
@@ -249,7 +292,7 @@ export default function PaginaRegistroSecreta() {
                       <div className="form-group">
                         <label htmlFor="isla">Isla de Residencia</label>
                         <select id="isla" name="isla" value={formData.isla} onChange={handleChange} required>
-                          <option value="">-- Elige isla --</option>
+                          <option value="">-- Isla --</option>
                           {["Gran Canaria", "Tenerife", "Lanzarote", "Fuerteventura", "La Palma", "La Gomera", "El Hierro", "La Graciosa"].map(i => <option key={i} value={i}>{i}</option>)}
                         </select>
                       </div>
@@ -268,37 +311,62 @@ export default function PaginaRegistroSecreta() {
                 {step === 3 && (
                   <div className="step-content">
                     <h3>Perfil Artístico</h3>
-                    <div className="form-group-row">
-                      <div className="form-group">
-                        <label>Agrupación Principal</label>
-                        <select name="agrupacion" value={formData.agrupacion} onChange={handleChange} required>
-                          <option value="">-- Selecciona --</option>
-                          {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
-                        </select>
+                    <p className="help-text" style={{ marginBottom: '1.5rem' }}>Específica en qué agrupaciones participas y tu instrumento.</p>
+                    
+                    <div className="artistic-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div className="form-group-row">
+                        <div className="form-group">
+                          <label>Agrupación Principal</label>
+                          <select name="agrupacion" value={formData.agrupacion} onChange={handleChange} required>
+                            <option value="">-- Agrupación 1 --</option>
+                            {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Instrumento / Voz</label>
+                          <select name="instrument" value={formData.instrument} onChange={handleChange} required>
+                            <option value="">-- Elige --</option>
+                            {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
                       </div>
-                      <div className="form-group">
-                        <label>Instrumento / Voz</label>
-                        <select name="instrument" value={formData.instrument} onChange={handleChange} required>
-                          <option value="">-- Elige --</option>
-                          {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+
+                      <div style={{ borderTop: '1px solid #eee', paddingActive: '1rem' }}></div>
+
+                      <div className="form-group-row">
+                        <div className="form-group">
+                          <label>Segunda Agrupación</label>
+                          <select name="agrupacion2" value={formData.agrupacion2} onChange={handleChange}>
+                            <option value="">-- Agrupación 2 --</option>
+                            {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Segundo Instrumento</label>
+                          <select name="instrument2" value={formData.instrument2} onChange={handleChange}>
+                            <option value="">-- Elige --</option>
+                            {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--clr-border)', margin: 'var(--sp-6) 0', opacity: 0.5 }}></div>
-                    <div className="form-group-row">
-                      <div className="form-group">
-                        <label>Segunda Agrupación (Opcional)</label>
-                        <select name="agrupacion2" value={formData.agrupacion2} onChange={handleChange}>
-                          <option value="">-- Ninguna --</option>
-                          {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Segundo Instrumento</label>
-                        <select name="instrument2" value={formData.instrument2} onChange={handleChange}>
-                          <option value="">-- Ninguna --</option>
-                          {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+
+                      <div style={{ borderTop: '1px solid #eee', paddingActive: '1rem' }}></div>
+
+                      <div className="form-group-row">
+                        <div className="form-group">
+                          <label>Tercera Agrupación</label>
+                          <select name="agrupacion3" value={formData.agrupacion3} onChange={handleChange}>
+                            <option value="">-- Agrupación 3 --</option>
+                            {dbAgrupaciones.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Tercer Instrumento</label>
+                          <select name="instrument3" value={formData.instrument3} onChange={handleChange}>
+                            <option value="">-- Elige --</option>
+                            {dbSecciones.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -330,7 +398,15 @@ export default function PaginaRegistroSecreta() {
                       </div>
                       <div className="form-group">
                         <label htmlFor="confirmEmail">Confirmar Correo</label>
-                        <input id="confirmEmail" type="email" value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} required autoComplete="none" />
+                        <input 
+                          id="confirmEmail" 
+                          type="email" 
+                          value={confirmEmail} 
+                          onChange={(e) => setConfirmEmail(e.target.value)} 
+                          required 
+                          autoComplete="off"
+                          onPaste={(e) => e.preventDefault()}
+                        />
                       </div>
                     </div>
                     {formData.email && confirmEmail && formData.email !== confirmEmail && (

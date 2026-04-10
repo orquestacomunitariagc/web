@@ -39,27 +39,45 @@ export async function GET() {
     const userStructures = dbUser?.estructuras || [];
     const clerkRoles = (user?.publicMetadata?.roles as string[]) || [];
 
-    // Traemos las partituras
-    const allScores = await prisma.score.findMany({
-      include: { category: true },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Traemos las partituras y el catálogo de secciones para diferenciar etiquetas
+    const [allScores, seccionesDB] = await Promise.all([
+      prisma.score.findMany({
+        include: { category: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.seccion.findMany({ select: { seccion: true } })
+    ]);
+
+    const predefinedSecciones = seccionesDB.map(s => s.seccion);
 
     const filteredScores = allScores.filter(score => {
+      // 1. Documentos generales: visibles para todos
       if (score.isDocument) return true;
+
+      // 2. Partituras sin restricciones: visibles para todos
       if (score.allowedRoles.length === 0 && score.allowedAgrupaciones.length === 0) return true;
 
-      // A. COMPROBACIÓN CLERK (Etiquetas Manuales/Comodines como "General Orquesta")
-      // Si la partitura pide un rol que el usuario tiene directamente en su perfil de Clerk
-      const hasClerkRole = score.allowedRoles.some(r => clerkRoles.includes(r));
-      if (hasClerkRole) return true;
-
-      // B. VALIDACIÓN DE PARES ESTRICTOS (Base de Datos)
-      return userStructures.some(est => {
+      // 3. Validar contra las estructuras activas del usuario (Validación de Pares Estricta)
+      const hasStrictMatch = userStructures.some(est => {
+        // ¿La agrupación de esta estructura es una de las permitidas?
         const matchAgrupacion = score.allowedAgrupaciones.length === 0 || score.allowedAgrupaciones.includes(est.agrupacion.agrupacion);
+        
+        // ¿La sección de esta estructura es una de las permitidas? (Roles en partitura = Secciones en DB)
         const matchSeccion = score.allowedRoles.length === 0 || score.allowedRoles.includes(est.seccion.seccion);
+        
+        // El usuario solo ve la partitura si coincide AMBOS en la MISMA estructura
         return matchAgrupacion && matchSeccion;
       });
+
+      if (hasStrictMatch) return true;
+
+      // 4. Comprobación de seguridad para Etiquetas Especiales (como "Tutti" o "Directiva")
+      // Esto permite que roles que no son "instrumentos" (ej: "Director") sigan funcionando
+      const hasSpecialTag = score.allowedRoles.some(r => 
+        clerkRoles.includes(r) && !predefinedSecciones.includes(r)
+      );
+      
+      return hasSpecialTag;
     });
 
     return NextResponse.json(filteredScores);
