@@ -107,181 +107,101 @@ export async function POST(req: Request) {
        }
      }
 
-     if (isLocalOnly || !targetUser) {
-       const dbId = isLocalOnly ? parseInt(userId.replace('ext_', '')) : null;
-       // Si no es ext_ pero no está en Clerk, intentamos buscarlo por DB ID si es posible o Clerk ID
-       const dbUser = await prisma.user.findFirst({ 
-         where: dbId ? { id: dbId } : { clerkUserId: userId } 
-       });
-        if (dbUser) targetName = `${dbUser.name} ${dbUser.surname}`.trim();
-     }
+      // Buscar el ID de la base de datos (dbId) para usar con syncUserWithClerk
+      const dbUser = await prisma.user.findFirst({ 
+        where: isLocalOnly ? { id: parseInt(userId.replace('ext_', '')) } : { clerkUserId: userId } 
+      });
+      
+      if (dbUser) {
+        targetName = `${dbUser.name} ${dbUser.surname}`.trim();
+      } else {
+        return new NextResponse("Usuario no encontrado en la DB local", { status: 404 });
+      }
 
-     // --- FUNCIÓN HELPER PARA SINCRONIZACIÓN TOTAL ---
-     const syncUserPermissions = async (userId: string, clerkId: string | null) => {
-        const allEsts = await prisma.estructura.findMany({
-          where: clerkId ? { user: { clerkUserId: clerkId } } : { id: parseInt(userId.replace('ext_', '')) },
-          include: { seccion: true, agrupacion: true, papel: true }
-        });
-        
-        const activeEstructuras = allEsts.filter(e => e.activo);
-        const roles = new Set<string>();
-        
-        activeEstructuras.forEach(e => {
-          roles.add(e.seccion.seccion);
-          roles.add(e.papel.papel);
-          roles.add(`${e.agrupacion.agrupacion}:${e.seccion.seccion}`);
-          roles.add(`Agrupación:${e.agrupacion.agrupacion}`);
-          if (e.agrupacion.agrupacion === "Orquesta Comunitaria Gran Canaria") roles.add("Orquesta - Tutti");
-          if (e.agrupacion.agrupacion === "Coro Comunitario Gran Canaria") roles.add("Coro - Tutti");
+      const dbId = dbUser.id;
+      const { syncUserWithClerk } = await import("@/lib/clerk-sync");
+
+      // Acción para actualizar Roles manuales (Legacy / Clerk direct)
+      if (action === "update-roles" && !isLocalOnly && targetUser) {
+         const currentMetadata = (targetUser.publicMetadata || {}) as any;
+         await client!.users.updateUserMetadata(userId, {
+           publicMetadata: { ...currentMetadata, roles }
+         });
+         // Sincronizar después para asegurar coherencia con estructuras
+         await syncUserWithClerk(dbId);
+         await logActivity("Actualización de Instrumentos", user.id, { target: targetName, newRoles: roles });
+      }
+
+      // Acción para Banear / Desbanear
+      if (action === "toggle-ban") {
+         const { isBanned } = body; 
+         
+         await prisma.user.update({
+           where: { id: dbId },
+           data: { 
+             isActive: !isBanned,
+             estructuras: {
+               updateMany: { where: {}, data: { activo: !isBanned } }
+             }
+           }
+         });
+
+         await syncUserWithClerk(dbId);
+         await logActivity(`Perfil ${isBanned ? 'Desactivado' : 'Activado'}`, user.id, { target: targetName });
+      }
+
+      // Acción para actualizar una estructura específica (Activo/Atril)
+      if (action === "update-estructura") {
+        if (!estructuraId) return new NextResponse("Falta estructuraId", { status: 400 });
+
+        await prisma.estructura.update({
+          where: { id: estructuraId },
+          data: {
+            activo: activo !== undefined ? activo : undefined,
+            atril: atril !== undefined ? (atril === "" ? null : parseInt(atril)) : undefined
+          }
         });
 
-        if (clerkId) {
-          const client = await clerkClient();
-          const target = await client.users.getUser(clerkId);
-          await client.users.updateUserMetadata(clerkId, {
-            publicMetadata: {
-              ...(target.publicMetadata || {}),
-              roles: Array.from(roles),
-              agrupaciones: Array.from(new Set(activeEstructuras.map(e => e.agrupacion.agrupacion))),
-              isDirector: activeEstructuras.some(e => e.papel.papel.toLowerCase().includes("director") || e.papel.papel.toLowerCase().includes("jefe"))
+        await syncUserWithClerk(dbId);
+        await logActivity("Estructura Actualizada", user.id, { target: targetName });
+      }
+
+      // Acción para AÑADIR una nueva estructura (UPSERT para seguridad)
+      if (action === "add-estructura") {
+        const { agrupacionId, seccionId, papelId } = body;
+        
+        await prisma.estructura.upsert({
+          where: {
+            userId_papelId_agrupacionId_seccionId: {
+              userId: dbId,
+              agrupacionId: parseInt(agrupacionId),
+              seccionId: parseInt(seccionId),
+              papelId: parseInt(papelId)
             }
-          });
-          
-          if (activeEstructuras.length > 0 && target.banned) await client.users.unbanUser(clerkId);
-          if (activeEstructuras.length === 0 && !target.banned) await client.users.banUser(clerkId);
-        }
-
-        // Actualizar estado isActive en DB
-        await prisma.user.update({
-          where: clerkId ? { clerkUserId: clerkId } : { id: parseInt(userId.replace('ext_', '')) },
-          data: { isActive: activeEstructuras.length > 0 }
-        });
-     };
-
-     // Acción para actualizar Roles (Instrumentos)
-     if (action === "update-roles" && !isLocalOnly && targetUser) {
-        const currentMetadata = (targetUser.publicMetadata || {}) as any;
-        await client!.users.updateUserMetadata(userId, {
-          publicMetadata: {
-            ...currentMetadata,
-            roles
-          }
-        });
-        await logActivity("Actualización de Instrumentos", user.id, { 
-          target: targetName, 
-          newRoles: roles 
-        });
-     }
-
-     // Acción para Banear / Desbanear (Bloquear inicio de sesión / Perfil)
-     if (action === "toggle-ban") {
-        const { isBanned } = body; // true = desactivar perfil, false = activar perfil
-        
-        // 1. Actualizar estado local en DB (Cascade)
-        await prisma.user.update({
-          where: isLocalOnly ? { id: parseInt(userId.replace('ext_', '')) } : { clerkUserId: userId },
-          data: { 
-            isActive: !isBanned,
-            // Si activamos el perfil, activamos todas sus agrupaciones
-            // Si desactivamos el perfil, desactivamos todas sus agrupaciones
-            estructuras: {
-              updateMany: {
-                where: {},
-                data: { activo: !isBanned }
-              }
-            }
+          },
+          update: { activo: true },
+          create: {
+            userId: dbId,
+            agrupacionId: parseInt(agrupacionId),
+            seccionId: parseInt(seccionId),
+            papelId: parseInt(papelId),
+            activo: true
           }
         });
 
-        if (!isLocalOnly && targetUser) {
-          const currentMetadata = (targetUser.publicMetadata || {}) as any;
-          if (isBanned) {
-            await client!.users.banUser(userId);
-            // Limpiar roles de Clerk
-            await client!.users.updateUserMetadata(userId, {
-              publicMetadata: { ...currentMetadata, roles: [] }
-            });
-            await logActivity("Perfil Desactivado (Global)", user.id, { target: targetName });
-          } else {
-            await client!.users.unbanUser(userId);
-            
-            // Recuperar todas para sincronizar roles en Clerk
-            const allEsts = await prisma.estructura.findMany({
-              where: { user: { clerkUserId: userId } },
-              include: { seccion: true, agrupacion: true }
-            });
+        await syncUserWithClerk(dbId);
+        await logActivity("Nueva Estructura Añadida", user.id, { target: targetName });
+      }
 
-            const newRoles = allEsts.map(e => e.seccion.seccion);
-            const activeGroups = new Set(allEsts.map(e => e.agrupacion.agrupacion));
-            
-            if (activeGroups.has("Orquesta Comunitaria Gran Canaria")) newRoles.push("Orquesta - Tutti");
-            if (activeGroups.has("Coro Comunitario Gran Canaria")) newRoles.push("Coro - Tutti");
-            if (activeGroups.has("Ensemble de Flautas")) newRoles.push("Ensemble Flautas - Tutti");
-            if (activeGroups.has("Ensemble de Metales")) newRoles.push("Ensemble Metales - Tutti");
-            if (activeGroups.has("Ensemble de Chelos")) newRoles.push("Ensemble Chelos - Tutti");
-            if (activeGroups.has("OCGC Big Band")) newRoles.push("Big Band - Tutti");
+      // Acción para ELIMINAR una estructura
+      if (action === "delete-estructura") {
+        if (!estructuraId) return new NextResponse("Falta estructuraId", { status: 400 });
 
-            await client!.users.updateUserMetadata(userId, {
-              publicMetadata: { ...currentMetadata, roles: Array.from(new Set(newRoles)) }
-            });
-            
-            await logActivity("Perfil Activado (Activación Masiva)", user.id, { target: targetName });
-          }
-        } else {
-          await logActivity(`Perfil Local ${isBanned ? 'Desactivado' : 'Activado'}`, user.id, { target: targetName });
-        }
-     }
+        await prisma.estructura.delete({ where: { id: estructuraId } });
 
-     // Acción para actualizar una estructura específica (Activo/Atril)
-     if (action === "update-estructura") {
-       if (!estructuraId) return new NextResponse("Falta estructuraId", { status: 400 });
-
-       await prisma.estructura.update({
-         where: { id: estructuraId },
-         data: {
-           activo: activo !== undefined ? activo : undefined,
-           atril: atril !== undefined ? (atril === "" ? null : parseInt(atril)) : undefined
-         }
-       });
-
-       await syncUserPermissions(userId, isLocalOnly ? null : userId);
-       await logActivity("Estructura Actualizada", user.id, { target: targetName });
-     }
-
-     // Acción para AÑADIR una nueva estructura
-     if (action === "add-estructura") {
-       const { agrupacionId, seccionId, papelId } = body;
-       const dbUser = await prisma.user.findFirst({ 
-         where: isLocalOnly ? { id: parseInt(userId.replace('ext_', '')) } : { clerkUserId: userId } 
-       });
-       
-       if (!dbUser) return new NextResponse("Usuario no encontrado", { status: 404 });
-
-       await prisma.estructura.create({
-         data: {
-           userId: dbUser.id,
-           agrupacionId: parseInt(agrupacionId),
-           seccionId: parseInt(seccionId),
-           papelId: parseInt(papelId),
-           activo: true
-         }
-       });
-
-       await syncUserPermissions(userId, isLocalOnly ? null : userId);
-       await logActivity("Nueva Estructura Añadida", user.id, { target: targetName });
-     }
-
-     // Acción para ELIMINAR una estructura
-     if (action === "delete-estructura") {
-       if (!estructuraId) return new NextResponse("Falta estructuraId", { status: 400 });
-
-       await prisma.estructura.delete({
-         where: { id: estructuraId }
-       });
-
-       await syncUserPermissions(userId, isLocalOnly ? null : userId);
-       await logActivity("Estructura Eliminada", user.id, { target: targetName });
-     }
+        await syncUserWithClerk(dbId);
+        await logActivity("Estructura Eliminada", user.id, { target: targetName });
+      }
 
      // Acción para cambiar permiso de Archivero
      if (action === "toggle-archiver" && !isLocalOnly && targetUser) {

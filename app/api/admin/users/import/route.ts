@@ -30,10 +30,9 @@ export async function POST(req: Request) {
       
       if (existingClerkUsers.data.length > 0) {
         clerkUser = existingClerkUsers.data[0];
-        // Actualizar metadatos si ya existe
+        // Sincronizar permisos básicos (Master/Archiver)
         await (await clerkClient()).users.updateUserMetadata(clerkUser.id, {
           publicMetadata: {
-            roles: roles || [],
             isMaster: !!isMaster,
             isArchiver: !!isArchiver
           }
@@ -45,7 +44,6 @@ export async function POST(req: Request) {
             firstName,
             lastName,
             publicMetadata: {
-              roles: roles || [],
               isMaster: !!isMaster,
               isArchiver: !!isArchiver
             },
@@ -57,7 +55,7 @@ export async function POST(req: Request) {
     const dbUser = await prisma.user.upsert({
       where: { dni: String(dni) },
       update: {
-        clerkUserId: clerkUser?.id || null, // Si es externo o no tiene Clerk ID, se pone a null si está vacío (o se mantiene)
+        clerkUserId: clerkUser?.id || undefined,
         name: firstName,
         surname: lastName,
         email: email || null,
@@ -80,14 +78,11 @@ export async function POST(req: Request) {
       await prisma.matricula.upsert({
         where: { matriculaNumber: String(matricula) },
         update: { userId: dbUser.id },
-        create: {
-          matriculaNumber: String(matricula),
-          userId: dbUser.id
-        }
+        create: { matriculaNumber: String(matricula), userId: dbUser.id }
       });
     }
 
-    // 4. Crear Estructura (Perfil Artístico) si se proporcionan datos
+    // 4. Crear Estructura (Perfil Artístico)
     if (agrupacion && seccion && papel) {
       const [dbAgrup, dbSeccion, dbPapel] = await Promise.all([
         prisma.agrupacion.findUnique({ where: { agrupacion } }),
@@ -117,7 +112,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Registrar en el Log de Actividad
+    // 5. Sincronizar roles avanzados con Clerk
+    const { syncUserWithClerk } = await import("@/lib/clerk-sync");
+    await syncUserWithClerk(dbUser.id);
+
+    // 6. Registrar en el Log de Actividad
     await prisma.activityLog.create({
       data: {
         action: "Imported Member",
@@ -125,7 +124,6 @@ export async function POST(req: Request) {
           email,
           clerkId: clerkUser?.id,
           dni,
-          roles,
           agrupacion,
           seccion,
           papel,

@@ -34,10 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Este usuario ya tiene acceso a la plataforma" }, { status: 400 });
     }
 
-    // 2. Preparar roles iniciales para Clerk basados en sus estructuras actuales
-    const roles = dbUser.estructuras.map(e => e.seccion.seccion);
-    
-    // 3. Crear el usuario en Clerk
+    // 3. Crear el usuario en Clerk (básico)
     const clerkUser = await clerkClient.users.createUser({
       firstName: dbUser.name,
       lastName: dbUser.surname,
@@ -45,7 +42,6 @@ export async function POST(req: Request) {
       username,
       password,
       publicMetadata: { 
-        roles,
         isMaster: targetRole === 'master' ? targetValue : false,
         isArchiver: targetRole === 'archiver' ? targetValue : false
       },
@@ -59,9 +55,13 @@ export async function POST(req: Request) {
       data: {
         clerkUserId: clerkUser.id,
         email: email,
-        isExternal: false // Al darle acceso, deja de ser externo si lo era
+        isExternal: false
       }
     });
+
+    // 5. Sincronizar roles avanzados (con etiquetas compuestas y ban logic)
+    const { syncUserWithClerk } = await import("@/lib/clerk-sync");
+    await syncUserWithClerk(dbId);
 
     await logActivity("User Upgraded to Platform", admin.id, { 
       dbId, 

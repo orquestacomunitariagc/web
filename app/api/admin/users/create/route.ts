@@ -35,21 +35,7 @@ export async function POST(req: Request) {
     const canCreateClerkAccount = !isExternal && email && username && password;
 
     if (canCreateClerkAccount) {
-      // 1. Preparar roles para Clerk
-      const roles = artisticProfiles?.map((p: any) => p.seccion) || [];
-      const agrupacionesSet = new Set(artisticProfiles?.map((p: any) => p.agrupacion) || []);
-      
-      // Auto-añadir roles Tutti para acceso a carpetas
-      if (agrupacionesSet.has("Orquesta Comunitaria Gran Canaria")) roles.push("Orquesta - Tutti");
-      if (agrupacionesSet.has("Coro Comunitario Gran Canaria")) roles.push("Coro - Tutti");
-      if (agrupacionesSet.has("Ensemble de Flautas")) roles.push("Ensemble Flautas - Tutti");
-      if (agrupacionesSet.has("Ensemble de Metales")) roles.push("Ensemble Metales - Tutti");
-      if (agrupacionesSet.has("Ensemble de Chelos")) roles.push("Ensemble Chelos - Tutti");
-      if (agrupacionesSet.has("OCGC Big Band")) roles.push("Big Band - Tutti");
-
-      uniqueRoles = Array.from(new Set(roles));
-
-      // 2. Crear el usuario en Clerk
+      // 1. Crear el usuario en Clerk (básico)
       clerkUser = await clerkClient.users.createUser({
         firstName,
         lastName: surname,
@@ -57,7 +43,6 @@ export async function POST(req: Request) {
         username,
         password,
         publicMetadata: { 
-          roles: uniqueRoles,
           isMaster: !!isMaster,
           isArchiver: !!isArchiver
         },
@@ -66,11 +51,11 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Crear el usuario en la DB Local (UPSERT por DNI para evitar duplicados si ya existía como externo)
+    // 2. Crear el usuario en la DB Local
     const newUser = await prisma.user.upsert({
       where: { dni: String(dni) },
       update: {
-        clerkUserId: clerkUser?.id || null,
+        clerkUserId: clerkUser?.id || undefined, // No pisar si ya tenía uno y ahora no pasamos clerkUser
         name: firstName,
         surname: surname,
         email: email || null,
@@ -90,19 +75,16 @@ export async function POST(req: Request) {
       }
     });
 
-    // 3.1 Manejar Matrícula si se proporciona
+    // 3. Matrícula
     if (matricula) {
       await prisma.matricula.upsert({
         where: { matriculaNumber: String(matricula) },
         update: { userId: newUser.id },
-        create: {
-          matriculaNumber: String(matricula),
-          userId: newUser.id
-        }
+        create: { matriculaNumber: String(matricula), userId: newUser.id }
       });
     }
 
-    // 4. Crear las estructuras (perfiles artísticos)
+    // 4. Estructuras (UPSERT)
     if (artisticProfiles && artisticProfiles.length > 0) {
       for (const profile of artisticProfiles) {
         const dbAgrup = await prisma.agrupacion.findUnique({ where: { agrupacion: profile.agrupacion } });
@@ -110,8 +92,17 @@ export async function POST(req: Request) {
         const dbPapel = await prisma.papel.findUnique({ where: { papel: profile.papel || "Músico" } });
 
         if (dbAgrup && dbSeccion && dbPapel) {
-          await prisma.estructura.create({
-            data: {
+          await prisma.estructura.upsert({
+            where: {
+              userId_papelId_agrupacionId_seccionId: {
+                userId: newUser.id,
+                papelId: dbPapel.id,
+                agrupacionId: dbAgrup.id,
+                seccionId: dbSeccion.id
+              }
+            },
+            update: { activo: true },
+            create: {
               userId: newUser.id,
               papelId: dbPapel.id,
               agrupacionId: dbAgrup.id,
@@ -123,12 +114,15 @@ export async function POST(req: Request) {
       }
     }
 
+    // 5. Sincronizar roles avanzados con Clerk
+    const { syncUserWithClerk } = await import("@/lib/clerk-sync");
+    await syncUserWithClerk(newUser.id);
+
     await logActivity("Manual User Created", admin.id, { 
       clerkId: clerkUser?.id, 
       name: `${firstName} ${surname}`, 
       isExternal, 
       dni, 
-      matricula,
       artisticProfilesCount: artisticProfiles?.length 
     });
 

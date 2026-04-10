@@ -30,31 +30,21 @@ export async function POST(req: Request) {
       data: { usedAt: new Date() }
     });
 
-    // 1. Preparar los pares Agrupación/Sección para crear la Estructura y Roles
+    // 1. Preparar los pares Agrupación/Sección para crear la Estructura en DB
     const groupPairs = [
       { ag: data.agrupacion, inst: data.instrument },
       { ag: data.agrupacion2, inst: data.instrument2 },
       { ag: data.agrupacion3, inst: data.instrument3 }
-    ].filter(p => p.ag && p.inst); // Solo los que tengan ambos campos rellenos
+    ].filter(p => p.ag && p.inst);
 
-    let userRoles = Array.from(new Set(groupPairs.map(p => p.inst)));
-    // Asignar roles grupales (Tutti) automáticamente según sus agrupaciones para flexibilizar acceso a partituras
-    const agrupacionesSet = new Set(groupPairs.map(p => p.ag));
-    if (agrupacionesSet.has("Orquesta Comunitaria Gran Canaria")) userRoles.push("Orquesta - Tutti");
-    if (agrupacionesSet.has("Coro Comunitario Gran Canaria")) userRoles.push("Coro - Tutti");
-    if (agrupacionesSet.has("Ensemble de Flautas")) userRoles.push("Ensemble Flautas - Tutti");
-    if (agrupacionesSet.has("Ensemble de Metales")) userRoles.push("Ensemble Metales - Tutti");
-    if (agrupacionesSet.has("Ensemble de Chelos")) userRoles.push("Ensemble Chelos - Tutti");
-    if (agrupacionesSet.has("OCGC Big Band")) userRoles.push("Big Band - Tutti");
-
-    // 2. Crear el usuario en Clerk (solo lo esencial)
+    // 2. Crear el usuario en Clerk (solo configuración básica, syncUserWithClerk pondrá los roles después)
     const clerkUser = await clerkClient.users.createUser({
       firstName,
       lastName: surname,
       emailAddress: [email],
       username,
       password,
-      publicMetadata: { roles: userRoles },
+      publicMetadata: {}, // Se llenará en el paso 6
       skipPasswordRequirement: false,
       skipPasswordChecks: true
     });
@@ -88,8 +78,6 @@ export async function POST(req: Request) {
     ]);
 
     // 4. Crear o Actualizar el usuario principal (UPSERT por DNI)
-    // Esto permite que si el usuario ya existía como registro administrativo (DNI), 
-    // se "promocione" a usuario de la plataforma conservando su historia.
     const newUser = await prisma.user.upsert({
       where: { dni: dni || "" },
       update: {
@@ -101,7 +89,7 @@ export async function POST(req: Request) {
         birthDate: dob || null,
         residenciaId: residenciaRecord.id,
         empleoId: empleoRecord.id,
-        isExternal: false, // Ahora es un usuario de plataforma
+        isExternal: false,
         isActive: true
       },
       create: {
@@ -119,14 +107,23 @@ export async function POST(req: Request) {
       }
     });
 
-    // 5. Crear todas las filas de Estructura solicitadas
+    // 5. Crear todas las filas de Estructura solicitadas (UPSERT para evitar fallos si ya existía administrativamente)
     for (const pair of groupPairs) {
       const dbAgrup = await prisma.agrupacion.findUnique({ where: { agrupacion: pair.ag } });
       const dbInst = await prisma.seccion.findUnique({ where: { seccion: pair.inst } });
       
       if (dbAgrup && dbInst) {
-        await prisma.estructura.create({
-          data: {
+        await prisma.estructura.upsert({
+          where: {
+            userId_papelId_agrupacionId_seccionId: {
+              userId: newUser.id,
+              papelId: papelMusico.id,
+              agrupacionId: dbAgrup.id,
+              seccionId: dbInst.id
+            }
+          },
+          update: { activo: true },
+          create: {
             userId: newUser.id,
             papelId: papelMusico.id,
             agrupacionId: dbAgrup.id,
@@ -136,6 +133,10 @@ export async function POST(req: Request) {
         });
       }
     }
+
+    // 6. Sincronizar roles avanzados con Clerk usando la lógica maestra
+    const { syncUserWithClerk } = await import("@/lib/clerk-sync");
+    await syncUserWithClerk(newUser.id);
 
     return NextResponse.json({ success: true, userId: clerkUser.id, dbId: newUser.id });
   } catch (error: any) {

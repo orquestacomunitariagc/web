@@ -63,6 +63,7 @@ export default function AdminOCGCPartituras() {
 
   // Estado para creación manual de usuarios
   const [isManualCreateOpen, setIsManualCreateOpen] = useState(false);
+  const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isCreatingManual, setIsCreatingManual] = useState(false);
   const [manualUser, setManualUser] = useState({
     firstName: '',
@@ -1513,13 +1514,22 @@ export default function AdminOCGCPartituras() {
           <div className="invitation-generation-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', gap: '1rem', flexWrap: 'wrap' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>🎟️ Invitaciones e Incorporación</h3>
-              <button 
-                onClick={() => setIsManualCreateOpen(true)}
-                className="btn-main-admin"
-                style={{ width: 'auto', padding: '0.6rem 1.2rem', background: 'var(--clr-navy)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-              >
-                👤 Crear Usuario Manualmente
-              </button>
+              <div style={{ display: 'flex', gap: '0.8rem' }}>
+                <button 
+                  onClick={() => setIsCSVImportOpen(true)}
+                  className="btn-main-admin"
+                  style={{ width: 'auto', padding: '0.6rem 1.2rem', background: 'var(--clr-success)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+                >
+                  📤 Importar desde CSV
+                </button>
+                <button 
+                  onClick={() => setIsManualCreateOpen(true)}
+                  className="btn-main-admin"
+                  style={{ width: 'auto', padding: '0.6rem 1.2rem', background: 'var(--clr-navy)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+                >
+                  👤 Nuevo Usuario
+                </button>
+              </div>
             </div>
             
             <div className="invitation-expanded-form">
@@ -1708,7 +1718,22 @@ export default function AdminOCGCPartituras() {
             </select>
             <input type="text" placeholder="Nombre/Email..." value={searchMember} onChange={(e) => setSearchMember(e.target.value)} style={{ flex: 1, padding: '0.8rem', border: '1px solid #ddd', borderRadius: '6px', minWidth: '200px' }} />
           </div>
-          <CSVImportUsers onImportSuccess={() => loadMembers(true)} />
+          {isCSVImportOpen && (
+            <div className="admin-modal-overlay">
+              <div className="admin-modal-card" style={{ maxWidth: '850px', border: 'none' }}>
+                <div className="modal-header">
+                  <h2>Importar Músicos Masivamente</h2>
+                  <button onClick={() => setIsCSVImportOpen(false)} className="btn-close-modal">✕</button>
+                </div>
+                <div className="modal-body" style={{ padding: '2rem' }}>
+                   <CSVImportUsers onImportSuccess={() => {
+                     loadMembers(true);
+                     setIsCSVImportOpen(false);
+                   }} />
+                </div>
+              </div>
+            </div>
+          )}
           <div className="table-scroll">
             <table className="personal-table">
               <thead>

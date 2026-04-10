@@ -66,7 +66,7 @@ const HELPS = {
       "Lógica de Acceso: Si un usuario no tiene perfiles artísticos activos en la base de datos, el sistema lo 'Banea' automáticamente en Clerk.",
       "Gestión de Perfiles: Puedes añadir múltiples combinaciones (ej: Orquesta / Violín I / Músico y Coro / Tenor / Jefe de Sección).",
       "Sincronización Automática: Al guardar un cambio en un perfil, el sistema reconstruye los metadatos de Clerk sin que tengas que intervenir.",
-      "Edición Rápida: Usa los selectores integrados en la tabla del modal para cambiar agrupaciones o secciones sin cerrar la ventana.",
+      "Alta Masiva por CSV: El archivo debe tener encabezados: 'nombre', 'apellidos', 'dni' (obligatorios) y 'email', 'agrupacion', 'seccion', 'papel' (opcionales para acceso).",
       "Acceso a Plataforma: Para músicos sin cuenta (externos), usa 'Activar Acceso' para crearles su cuenta de Clerk y vincular sus datos históricos."
     ]
   },
