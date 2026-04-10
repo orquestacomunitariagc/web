@@ -350,7 +350,7 @@ export default function PaginaRegistroSecreta() {
                         </div>
                       </div>
 
-                      <div style={{ borderTop: '1px solid #eee', paddingActive: '1rem' }}></div>
+                      <div style={{ borderTop: '1px solid #eee', padding: '1rem' }}></div>
 
                       <div className="form-group-row">
                         <div className="form-group">
@@ -369,7 +369,7 @@ export default function PaginaRegistroSecreta() {
                         </div>
                       </div>
 
-                      <div style={{ borderTop: '1px solid #eee', paddingActive: '1rem' }}></div>
+                      <div style={{ borderTop: '1px solid #eee', padding: '1rem' }}></div>
 
                       <div className="form-group-row">
                         <div className="form-group">
