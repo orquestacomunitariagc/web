@@ -30,6 +30,7 @@ export default function PaginaRegistroSecreta() {
   const [formData, setFormData] = useState({
     firstName: '', surname: '', dni: '', dob: '',
     phone: '', email: '', isla: '', municipio: '', empadronamiento: '',
+    hasCertificate: false,
     agrupacion: '', instrument: '',
     agrupacion2: '', instrument2: '',
     agrupacion3: '', instrument3: '',
@@ -84,6 +85,9 @@ export default function PaginaRegistroSecreta() {
               surname: data.surname ?? prev.surname,
               email: data.email ?? prev.email,
               phone: data.phone ?? prev.phone,
+              dob: data.birthDate ?? prev.dob,
+              isla: data.isla ?? prev.isla,
+              hasCertificate: !!data.hasCertificate,
               agrupacion: data.agrupacion ?? '',
               instrument: data.seccion ?? '',
               agrupacion2: data.agrupacion2 ?? '',
@@ -125,6 +129,9 @@ export default function PaginaRegistroSecreta() {
           surname: data.surname ?? prev.surname,
           email: data.email ?? prev.email,
           phone: data.phone ?? prev.phone,
+          dob: data.birthDate ?? prev.dob,
+          isla: data.isla ?? prev.isla,
+          hasCertificate: !!data.hasCertificate,
           agrupacion: data.agrupacion ?? '',
           instrument: data.seccion ?? '',
           agrupacion2: data.agrupacion2 ?? '',
@@ -293,13 +300,25 @@ export default function PaginaRegistroSecreta() {
                         <label htmlFor="isla">Isla de Residencia</label>
                         <select id="isla" name="isla" value={formData.isla} onChange={handleChange} required>
                           <option value="">-- Isla --</option>
-                          {["Gran Canaria", "Tenerife", "Lanzarote", "Fuerteventura", "La Palma", "La Gomera", "El Hierro", "La Graciosa"].map(i => <option key={i} value={i}>{i}</option>)}
+                          {["Gran Canaria", "Tenerife", "Lanzarote", "Fuerteventura", "La Palma", "La Gomera", "El Hierro", "La Graciosa", "Fuera de Islas"].map(i => <option key={i} value={i}>{i}</option>)}
                         </select>
                       </div>
                       <div className="form-group">
                         <label htmlFor="municipio">Municipio</label>
                         <input id="municipio" type="text" name="municipio" value={formData.municipio} onChange={handleChange} required />
                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="hasCertificate" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: '0.5rem 0' }}>
+                        <input 
+                          id="hasCertificate" 
+                          type="checkbox" 
+                          name="hasCertificate" 
+                          checked={formData.hasCertificate} 
+                          onChange={(e) => setFormData(prev => ({ ...prev, hasCertificate: e.target.checked }))} 
+                        />
+                        <span>¿Posees el Certificado de Residencia Canaria para viajes?</span>
+                      </label>
                     </div>
                     <div className="form-group">
                       <label htmlFor="empadronamiento">Lugar de Empadronamiento</label>

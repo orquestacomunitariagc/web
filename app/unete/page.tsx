@@ -79,6 +79,9 @@ export default function UnetePage() {
       email: formData.get("email"),
       phone: `${formData.get("phone_prefix")} ${formData.get("phone")}`,
       experience: formData.get("experience"),
+      birthDate: formData.get("birthDate"),
+      isla: formData.get("isla"),
+      hasCertificate: formData.get("hasCertificate") === 'on',
       group: group,
       instrument: selectedInstrument,
       fax_number: formData.get("fax_number"),
@@ -114,7 +117,7 @@ export default function UnetePage() {
   const groups: Group[] = [
     {
       id: 'orquesta',
-      name: 'Orquesta Sinfónica',
+      name: 'Orquesta',
       description: 'Nuestra formación principal. Abiertos a músicos de todas las cuerdas, viento y percusión clásica.',
       color: 'var(--clr-primary)',
       icon: <IconViolin />,
@@ -126,7 +129,6 @@ export default function UnetePage() {
             <option>Viola</option>
             <option>Violonchelo</option>
             <option>Contrabajo</option>
-            <option>Arpa</option>
           </optgroup>
           <optgroup label="Viento Madera">
             <option>Flauta / Flautín</option>
@@ -143,6 +145,7 @@ export default function UnetePage() {
           <optgroup label="Percusión / Otros">
             <option>Percusión / Timbales</option>
             <option>Piano / Celesta</option>
+            <option>Arpa</option>
             <option>Otro Instrumento</option>
           </optgroup>
         </select>
@@ -150,7 +153,7 @@ export default function UnetePage() {
     },
     {
       id: 'coro',
-      name: 'Coro (COCGC)',
+      name: 'Coro',
       description: 'La voz de la comunidad. Buscamos sopranos, altos, tenores y bajos con pasión por cantar en grupo.',
       color: '#8e44ad',
       icon: <IconMic />,
@@ -166,8 +169,29 @@ export default function UnetePage() {
       ),
     },
     {
+      id: 'bigband',
+      name: 'Big Band',
+      description: 'Si el Jazz, el Swing o el Blues son lo tuyo. Metales, saxofones y base rítmica para aportar ritmo vital.',
+      color: '#1a2a4b',
+      icon: <IconSax />,
+      formExtra: (
+        <select name="instrument" required className="form-control" style={{ background: '#fff' }} defaultValue="">
+          <option value="" disabled>Instrumento *</option>
+          <option>Saxofón Alto</option>
+          <option>Saxofón Tenor</option>
+          <option>Saxofón Barítono</option>
+          <option>Trompeta</option>
+          <option>Trombón</option>
+          <option>Batería</option>
+          <option>Guitarra</option>
+          <option>Bajo / Contrabajo</option>
+          <option>Piano</option>
+        </select>
+      ),
+    },
+    {
       id: 'flautas',
-      name: 'Ensemble de Flautas',
+      name: 'Ensemble Flautas',
       description: 'Agrupación centrada en la familia de las flautas traversas, desde el piccolo hasta la flauta bajo.',
       color: '#16a085',
       icon: <IconWind />,
@@ -183,7 +207,7 @@ export default function UnetePage() {
     },
     {
       id: 'metales',
-      name: 'Ensemble de Metales',
+      name: 'Ensemble Metales',
       description: 'Para músicos que toquen trompeta, trompa, trombón o tuba. Potencia y brillo en perfecta armonía.',
       color: '#d35400',
       icon: <IconDrum />,
@@ -200,7 +224,7 @@ export default function UnetePage() {
     },
     {
       id: 'chelos',
-      name: 'Ensemble de Violonchelos',
+      name: 'Ensemble Violonchelos',
       description: 'Un espacio exclusivo dedicado al hermoso timbre del violonchelo. Una formación única en la isla.',
       color: '#c0392b',
       icon: <IconCello />,
@@ -208,23 +232,7 @@ export default function UnetePage() {
         <input name="instrument" type="text" value="Violonchelo" readOnly className="form-control" style={{ background: '#f8f9fa' }} />
       ),
     },
-    {
-      id: 'bigband',
-      name: 'Big Band',
-      description: 'Si el Jazz, el Swing o el Blues son lo tuyo. Metales, saxofones y base rítmica para aportar ritmo vital.',
-      color: '#1a2a4b',
-      icon: <IconSax />,
-      formExtra: (
-        <select name="instrument" required className="form-control" style={{ background: '#fff' }} defaultValue="">
-          <option value="" disabled>Instrumento *</option>
-          <option>Saxofón Alto</option><option>Saxofón Tenor</option>
-          <option>Saxofón Barítono</option><option>Trompeta</option>
-          <option>Trombón</option><option>Batería</option>
-          <option>Guitarra</option><option>Bajo / Contrabajo</option>
-          <option>Piano</option>
-        </select>
-      ),
-    },
+    
   ];
 
   return (
@@ -358,7 +366,24 @@ export default function UnetePage() {
                         <input id="fi-lname" name="last_name" type="text" placeholder="Apellido(s)" required className="form-control" autoComplete="family-name" />
                       </div>
                     </div>
-
+                    <div>
+                      <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Instrumento / Voz *</label>
+                      {g.formExtra}
+                      
+                      {showOther && (
+                        <div style={{ marginTop: 'var(--sp-3)', animation: 'fadeIn 0.3s ease' }}>
+                          <input 
+                            name="instrument_other" 
+                            type="text" 
+                            placeholder="Especifique su instrumento..." 
+                            required 
+                            className="form-control" 
+                            style={{ borderColor: 'var(--clr-gold)', borderStyle: 'dashed' }}
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div className="form-grid-2">
                       <div>
                         <label htmlFor="fi-email" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Email *</label>
@@ -381,24 +406,36 @@ export default function UnetePage() {
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: 'var(--sp-4)' }}>
-                      <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Instrumento / Voz *</label>
-                      {g.formExtra}
-                      
-                      {showOther && (
-                        <div style={{ marginTop: 'var(--sp-3)', animation: 'fadeIn 0.3s ease' }}>
-                          <input 
-                            name="instrument_other" 
-                            type="text" 
-                            placeholder="Especifique su instrumento..." 
-                            required 
-                            className="form-control" 
-                            style={{ borderColor: 'var(--clr-gold)', borderStyle: 'dashed' }}
-                            autoFocus
-                          />
-                        </div>
-                      )}
+                    <div className="form-grid-2">
+                      <div>
+                        <label htmlFor="fi-dob" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Fecha de Nacimiento *</label>
+                        <input id="fi-dob" name="birthDate" type="date" required className="form-control" />
+                      </div>
+                      <div>
+                        <label htmlFor="fi-isla" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Isla de Residencia *</label>
+                        <select id="fi-isla" name="isla" required className="form-control" defaultValue="Gran Canaria">
+                          <option value="" disabled>-- Elige Isla --</option>
+                          <option>Gran Canaria</option>
+                          <option>Tenerife</option>
+                          <option>Lanzarote</option>
+                          <option>Fuerteventura</option>
+                          <option>La Palma</option>
+                          <option>La Gomera</option>
+                          <option>El Hierro</option>
+                          <option>La Graciosa</option>
+                          <option>Fuera de Islas</option>
+                        </select>
+                      </div>
                     </div>
+
+                    <div style={{ marginBottom: 'var(--sp-4)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--clr-navy-mid)', cursor: 'pointer' }}>
+                        <input type="checkbox" name="hasCertificate" style={{ width: '18px', height: '18px' }} />
+                        Tengo Certificado de Residente para viajes.
+                      </label>
+                    </div>
+
+                    
 
                     <label htmlFor="fi-exp" style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--clr-navy-mid)' }}>Experiencia musical (Opcional)</label>
                     <textarea id="fi-exp" name="experience" placeholder="Cuéntanos un poco sobre tu trayectoria musical..." rows={3} className="form-control" />

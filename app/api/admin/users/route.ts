@@ -41,6 +41,8 @@ export async function GET() {
         isExternal: false,
         // Datos de nuestra DB
         dbId: dbUser?.id,
+        birthDate: dbUser?.birthDate,
+        hasCertificate: !!dbUser?.hasCertificate,
         estructuras: dbUser?.estructuras.map(e => ({
           id: e.id,
           agrupacion: e.agrupacion.agrupacion,
@@ -66,6 +68,8 @@ export async function GET() {
         isBanned: !db.isActive,
         isExternal: db.isExternal,
         isActive: db.isActive,
+        birthDate: db.birthDate,
+        hasCertificate: !!db.hasCertificate,
         estructuras: db.estructuras.map(e => ({
           id: e.id,
           agrupacion: e.agrupacion.agrupacion,
@@ -219,8 +223,8 @@ export async function POST(req: Request) {
         });
      }
 
-     // Acción para cambiar permiso de Master
-     if (action === "toggle-master" && !isLocalOnly && targetUser) {
+      // Acción para cambiar permiso de Master
+      if (action === "toggle-master" && !isLocalOnly && targetUser) {
         const currentMetadata = (targetUser.publicMetadata || {}) as any;
         const newValue = isMaster !== undefined ? isMaster : !currentMetadata.isMaster;
         await client!.users.updateUserMetadata(userId, {
@@ -233,9 +237,22 @@ export async function POST(req: Request) {
           target: targetName, 
           isMaster: newValue 
         });
-     }
+      }
 
-     return NextResponse.json({ success: true });
+      // Acción para actualizar datos personales básicos
+      if (action === "update-user-profile") {
+        const { birthDate, hasCertificate } = body;
+        await prisma.user.update({
+          where: { id: dbId },
+          data: { 
+            birthDate: birthDate || null,
+            hasCertificate: !!hasCertificate
+          }
+        });
+        await logActivity("Perfil Personal Actualizado", user.id, { target: targetName });
+      }
+
+      return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error in user action:", err);
     return new NextResponse("Action failed", { status: 500 });

@@ -36,7 +36,10 @@ export async function POST(req: Request) {
       agrupacion2: invitation.agrupacion2,
       seccion2: invitation.seccion2,
       agrupacion3: invitation.agrupacion3,
-      seccion3: invitation.seccion3
+      seccion3: invitation.seccion3,
+      birthDate: invitation.birthDate,
+      isla: invitation.isla,
+      hasCertificate: invitation.hasCertificate
     });
   } catch (error) {
     console.error("Error validando código:", error);

@@ -42,7 +42,6 @@ export async function POST(req: Request) {
     }
 
     // 1. Guardamos en la base de datos
-    // Nota: El formulario envía 'first_name' y 'last_name' en el body
     const request = await (prisma as any).joinRequest.create({
       data: {
         name: body.first_name || body.name || "Sin nombre",
@@ -52,6 +51,9 @@ export async function POST(req: Request) {
         group,
         instrument,
         experience,
+        birthDate: body.birthDate || null,
+        isla: body.isla || null,
+        hasCertificate: !!body.hasCertificate,
         status: "Pendiente"
       }
     });
@@ -68,7 +70,10 @@ export async function POST(req: Request) {
         phone, 
         group, 
         instrument, 
-        experience 
+        experience,
+        birthDate: body.birthDate || null,
+        isla: body.isla || null,
+        hasCertificate: !!body.hasCertificate
       });
     } catch (e) {
       console.error("Error al notificar al administrador del nuevo unete:", e);

@@ -52,6 +52,9 @@ export default function AdminOCGCPartituras() {
   const [inviteAgrupacion3, setInviteAgrupacion3] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
+  const [inviteBirthDate, setInviteBirthDate] = useState('');
+  const [inviteIsla, setInviteIsla] = useState('');
+  const [inviteHasCertificate, setInviteHasCertificate] = useState(false);
   
   // Estados para solicitudes de unión
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
@@ -109,6 +112,7 @@ export default function AdminOCGCPartituras() {
   const [searchMember, setSearchMember] = useState('');
   const [filterPersonalRole, setFilterPersonalRole] = useState<string>('all');
   const [filterPersonalInstrument, setFilterPersonalInstrument] = useState<string>('all');
+  
   const [secciones, setSecciones] = useState<any[]>([]);
 
   const [editingAgrupacion, setEditingAgrupacion] = useState<any | null>(null);
@@ -644,6 +648,9 @@ export default function AdminOCGCPartituras() {
           seccion2: inviteSection2 || null,
           agrupacion3: inviteAgrupacion3 || null,
           seccion3: inviteSection3 || null,
+          birthDate: inviteBirthDate || null,
+          isla: inviteIsla || null,
+          hasCertificate: inviteHasCertificate,
           sendEmail
         })
       });
@@ -669,6 +676,9 @@ export default function AdminOCGCPartituras() {
         setInviteAgrupacion3('');
         setInviteEmail('');
         setInvitePhone('');
+        setInviteBirthDate('');
+        setInviteIsla('');
+        setInviteHasCertificate(false);
       }
 
     } catch (error) {
@@ -704,6 +714,9 @@ export default function AdminOCGCPartituras() {
             setInvitePhone(req.phone || '');
             setInviteAgrupacion(req.group || '');
             setInviteSection(req.instrument || '');
+            setInviteBirthDate(req.birthDate || '');
+            setInviteIsla(req.isla || '');
+            setInviteHasCertificate(!!req.hasCertificate);
           }
           setActiveTab('personal');
           setTimeout(() => {
@@ -1563,6 +1576,43 @@ export default function AdminOCGCPartituras() {
                 />
               </div>
 
+              <div className="invitation-section" style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '10px', marginBottom: '1.5rem' }}>
+                <h4>Información de Perfil (Opcional)</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Fecha de Nacimiento</label>
+                    <input 
+                      type="date" 
+                      value={inviteBirthDate} 
+                      onChange={(e) => setInviteBirthDate(e.target.value)} 
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #ddd' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Isla de Residencia</label>
+                    <select 
+                      value={inviteIsla} 
+                      onChange={(e) => setInviteIsla(e.target.value)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #ddd' }}
+                    >
+                      <option value="">-- No especificada --</option>
+                      {['Gran Canaria', 'Tenerife', 'Lanzarote', 'Fuerteventura', 'La Palma', 'La Gomera', 'El Hierro', 'La Graciosa', 'Fuera de Islas'].map(i => (
+                        <option key={i} value={i}>{i}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <input 
+                      type="checkbox" 
+                      id="hasCertInvite" 
+                      checked={inviteHasCertificate} 
+                      onChange={(e) => setInviteHasCertificate(e.target.checked)} 
+                    />
+                    <label htmlFor="hasCertInvite" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>¿Tiene Certificado de Residente?</label>
+                  </div>
+                </div>
+              </div>
+
               <div className="invitation-section">
                 <h4>Perfil Artístico 1 (Principal)</h4>
                 <div className="invite-row-grid-2col">
@@ -1981,8 +2031,6 @@ export default function AdminOCGCPartituras() {
                           <button
                             onClick={() => {
                                toggleMasterStatus(editingMemberData.id, editingMemberData.isMaster);
-                               // No actualizamos localmente aquí porque toggleMasterStatus 
-                               // puede abrir el modal de activation y no queremos estado inconsistente
                             }}
                             className={`btn-status ${editingMemberData.isMaster ? 'active' : ''}`}
                             style={{ padding: '0.6rem', fontSize: '1.1rem' }}
@@ -2015,7 +2063,6 @@ export default function AdminOCGCPartituras() {
                           <button
                             onClick={() => {
                               toggleBanStatus(editingMemberData.id, editingMemberData.isBanned);
-                              // Cerramos el modal de edición para evitar confusión si se activa el flujo de ban/unban masivo
                               setEditingMemberData(null);
                             }}
                             className={`btn-status ${editingMemberData.isBanned ? 'banned' : 'active'}`}
@@ -2031,6 +2078,62 @@ export default function AdminOCGCPartituras() {
                       </div>
                     </div>
                   )}
+
+                  <div className="personal-data-admin-section" style={{ marginTop: '2rem', padding: '1.5rem', background: '#fff', borderRadius: '12px', border: '1px solid #eee', borderLeft: '4px solid var(--clr-primary)' }}>
+                    <h3 style={{ fontSize: '0.92rem', marginBottom: '1.2rem', color: 'var(--clr-navy)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.3rem' }}>👤</span> Datos de Perfil y Residencia Canaria
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                      <div className="admin-field-group">
+                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '6px', color: '#555' }}>FECHA DE NACIMIENTO</label>
+                        <input 
+                          type="date" 
+                          value={editingMemberData.birthDate || ''} 
+                          onChange={(e) => setEditingMemberData({...editingMemberData, birthDate: e.target.value})}
+                          style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.9rem' }}
+                        />
+                      </div>
+                      <div className="admin-field-group">
+                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '6px', color: '#555' }}>VIAJES / SUBSIDIO</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', height: '42px', background: '#f8f9fa', padding: '0 1rem', borderRadius: '8px', border: '1px solid #eee' }}>
+                          <input 
+                            type="checkbox" 
+                            id="hasCertEdit" 
+                            checked={!!editingMemberData.hasCertificate}
+                            onChange={(e) => setEditingMemberData({...editingMemberData, hasCertificate: e.target.checked})}
+                            style={{ margin: 0 }}
+                          />
+                          <label htmlFor="hasCertEdit" style={{ fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>¿Tiene Certificado de Residente?</label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/admin/users", {
+                                method: "POST",
+                                body: JSON.stringify({ 
+                                  userId: editingMemberData.id, 
+                                  action: "update-user-profile", 
+                                  birthDate: editingMemberData.birthDate,
+                                  hasCertificate: editingMemberData.hasCertificate 
+                                }),
+                                headers: { "Content-Type": "application/json" }
+                              });
+                              if(res.ok) {
+                                showToast("Perfil actualizado correctamente");
+                                loadMembers(true);
+                              }
+                            } catch(e) { showToast("Error al guardar perfil", "error"); }
+                          }}
+                          className="btn-main-admin"
+                          style={{ padding: '0.7rem 1.2rem', height: '42px', fontSize: '0.8rem' }}
+                        >
+                          💾 Guardar Datos Perfil
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="modal-footer">
@@ -2735,9 +2838,12 @@ export default function AdminOCGCPartituras() {
                         {r.status === 'Evaluando' ? '🔍 Evaluando' : r.status}
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--clr-text-muted)', display: 'flex', gap: '1rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--clr-text-muted)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                       <span>📧 {r.email}</span>
                       <span>📞 {r.phone}</span>
+                      {r.birthDate && <span>👶 {new Date(r.birthDate).toLocaleDateString()}</span>}
+                      {r.isla && <span>🏝️ {r.isla}</span>}
+                      <span>✈️ {r.hasCertificate ? "✓ Residente" : "Sin Cert."}</span>
                     </p>
                     <div style={{ marginTop: '0.8rem', padding: '1rem', background: 'var(--clr-light)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--clr-navy-mid)', border: '1px solid #e1e8ed' }}>
                       <strong>Experiencia:</strong> {r.experience || "No especificada"}

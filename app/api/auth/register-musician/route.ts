@@ -13,6 +13,7 @@ export async function POST(req: Request) {
       isla, municipio, empadronamiento,
       trabajo, estudios, vehicleRegistration,
       username, password,
+      hasCertificate, // Nuevo campo
       inviteCode // El código de invitación de un solo uso
     } = data;
 
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
         email: email,
         phone: phone || null,
         birthDate: dob || null,
+        hasCertificate: !!hasCertificate,
         residenciaId: residenciaRecord.id,
         empleoId: empleoRecord.id,
         isExternal: false,
@@ -100,6 +102,7 @@ export async function POST(req: Request) {
         email: email,
         phone: phone || null,
         birthDate: dob || null,
+        hasCertificate: !!hasCertificate,
         residenciaId: residenciaRecord.id,
         empleoId: empleoRecord.id,
         isExternal: false,

@@ -31,13 +31,20 @@ export async function POST(req: Request) {
   if (!user?.publicMetadata?.isMaster) return new NextResponse("Forbidden", { status: 403 });
 
   try {
-    const { name, email, surname, phone, agrupacion, seccion, agrupacion2, seccion2, agrupacion3, seccion3, sendEmail } = await req.json();
+    const { 
+      name, email, surname, phone, 
+      agrupacion, seccion, 
+      agrupacion2, seccion2, 
+      agrupacion3, seccion3, 
+      birthDate, isla, hasCertificate,
+      sendEmail 
+    } = await req.json();
 
     const code = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    const invitation = await prisma.invitationCode.create({
+    const invitation = await (prisma as any).invitationCode.create({
       data: {
         code,
         name,
@@ -50,7 +57,10 @@ export async function POST(req: Request) {
         agrupacion2: agrupacion2 || null,
         seccion2: seccion2 || null,
         agrupacion3: agrupacion3 || null,
-        seccion3: seccion3 || null
+        seccion3: seccion3 || null,
+        birthDate: birthDate || null,
+        isla: isla || null,
+        hasCertificate: !!hasCertificate
       }
     });
 
