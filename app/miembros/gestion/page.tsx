@@ -1960,7 +1960,7 @@ export default function AdminOCGCPartituras() {
                               })
                             });
                             if(res.ok) {
-                              showNotification("Perfil añadido y sincronizado");
+                              showToast("Perfil añadido y sincronizado");
                               loadMembers(true);
                               setEditingMemberData(null);
                             }
